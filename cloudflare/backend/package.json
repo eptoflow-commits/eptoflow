@@ -1,0 +1,28 @@
+{
+  "name": "eptoflow-worker",
+  "version": "1.0.0",
+  "description": "Eptoflow backend on Cloudflare Workers (Hono + D1)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate:local":  "wrangler d1 execute eptoflow --local  --file=./schema-d1.sql",
+    "migrate:remote": "wrangler d1 execute eptoflow --remote --file=./schema-d1.sql",
+    "seed:generate": "node scripts/seed-admin.mjs > seed.sql",
+    "seed:local":  "npm run seed:generate && wrangler d1 execute eptoflow --local  --file=./seed.sql",
+    "seed:remote": "npm run seed:generate && wrangler d1 execute eptoflow --remote --file=./seed.sql",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "hono": "^4.5.3",
+    "jose": "^5.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "typescript": "^5.5.3",
+    "wrangler": "^3.65.0"
+  }
+}

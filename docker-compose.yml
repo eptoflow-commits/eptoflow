@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eptoflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eptoflow
+      POSTGRES_PASSWORD: eptoflow_pw
+      POSTGRES_DB: eptoflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - eptoflow_pg:/var/lib/postgresql/data
+      - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  backend:
+    build: ./backend
+    container_name: eptoflow-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://eptoflow:eptoflow_pw@postgres:5432/eptoflow
+      JWT_SECRET: change_me_in_production_please_32_chars_minimum
+      ADMIN_JWT_SECRET: change_me_admin_in_production_32_chars
+      DEVICE_JWT_SECRET: change_me_device_secret_32_chars_min
+      PORT: 4000
+      ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "4000:4000"
+
+volumes:
+  eptoflow_pg:

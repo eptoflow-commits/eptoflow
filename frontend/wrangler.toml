@@ -1,0 +1,9 @@
+name = "eptoflow"
+compatibility_date = "2024-09-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# Set the public API base URL for the frontend (points to your Worker).
+# After deploy, also set this in the Pages project UI.
+[vars]
+NEXT_PUBLIC_API_BASE_URL = "https://eptoflow-api.<YOUR-SUBDOMAIN>.workers.dev"

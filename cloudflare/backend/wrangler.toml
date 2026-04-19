@@ -1,0 +1,39 @@
+name = "eptoflow-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Public environment variables (non-secret).
+[vars]
+# ⚠  Update with your real Pages URL after deploying the frontend, then redeploy.
+ALLOWED_ORIGINS = "http://localhost:3000,https://eptoflow.pages.dev"
+DEFAULT_ADMIN_EMAIL = "admin@eptoflow.local"
+HEARTBEAT_OFFLINE_SECONDS = "120"
+SUBSCRIPTION_DAYS = "30"
+JWT_EXPIRES_IN = "7d"
+DEVICE_JWT_EXPIRES_IN = "30d"
+
+# -----------------------------------------------------------------------------
+# Secrets (DO NOT set here). Create once with wrangler:
+#
+#   wrangler secret put JWT_SECRET
+#   wrangler secret put ADMIN_JWT_SECRET
+#   wrangler secret put DEVICE_JWT_SECRET
+#   wrangler secret put DEFAULT_ADMIN_PASSWORD
+# -----------------------------------------------------------------------------
+
+# D1 database binding.  Create the database once with:
+#   wrangler d1 create eptoflow
+# Then paste the returned database_id below.
+# ⚠  Run: wrangler d1 create eptoflow  — then paste the returned database_id here.
+[[d1_databases]]
+binding = "DB"
+database_name = "eptoflow"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Scheduled (cron) triggers for background jobs.
+[triggers]
+crons = [
+  "*/1 * * * *",   # every minute: run due schedules + mark offline devices
+  "*/30 * * * *",  # every 30 min: expire subscriptions + reminders
+]

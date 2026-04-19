@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: eptoflow-api
+    runtime: node
+    region: oregon
+    plan: free
+    # schema.sql uses IF NOT EXISTS so migrate is safe to re-run on every deploy
+    buildCommand: npm install && npm run migrate
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: eptoflow-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: DEVICE_JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DEVICE_JWT_EXPIRES_IN
+        value: 30d
+      # Set this to your Vercel frontend URL after deploying the frontend
+      - key: ALLOWED_ORIGINS
+        value: https://eptoflow.vercel.app
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@eptoflow.local
+      # Change this after first login!
+      - key: DEFAULT_ADMIN_PASSWORD
+        generateValue: true
+      - key: HEARTBEAT_OFFLINE_SECONDS
+        value: 120
+      - key: SUBSCRIPTION_DAYS
+        value: 30
+
+databases:
+  - name: eptoflow-db
+    databaseName: eptoflow
+    user: eptoflow
+    plan: free

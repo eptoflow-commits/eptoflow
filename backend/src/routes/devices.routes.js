@@ -1,0 +1,134 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { query } from '../db/pool.js';
+import { authUser, loadSubscription } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { asyncH, Errors } from '../utils/http.js';
+import { randomDeviceUid, randomToken, hashSecret } from '../utils/crypto.js';
+import { enqueueCommand } from '../services/command.service.js';
+import { audit } from '../utils/audit.js';
+import { serializePlan } from '../services/plan.service.js';
+
+const router = Router();
+
+router.use(authUser, loadSubscription());
+
+/** Get the list of devices owned by the user */
+router.get('/', asyncH(async (req, res) => {
+  const { rows } = await query(
+    `SELECT id, device_uid, device_name, plan_bound, status, last_seen_at, enabled, firmware_version
+       FROM devices
+      WHERE user_id = $1
+      ORDER BY created_at DESC`,
+    [req.user.id]
+  );
+  res.json({ devices: rows });
+}));
+
+/**
+ * Provisions (claims) a new device. Returns the plaintext device_secret ONCE,
+ * which the user flashes into firmware.
+ */
+const provisionSchema = z.object({
+  device_name: z.string().max(120).optional(),
+});
+router.post('/', validate(provisionSchema), asyncH(async (req, res) => {
+  if (!req.subscription?.isActive) throw Errors.subscriptionInactive();
+  const plan = req.subscription.plan_name;
+  const uid = randomDeviceUid();
+  const secret = randomToken(24);
+  const hash = await hashSecret(secret);
+  const { rows } = await query(
+    `INSERT INTO devices (user_id, device_uid, device_name, device_secret_hash, plan_bound)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, device_uid, device_name, plan_bound, status, enabled, created_at`,
+    [req.user.id, uid, req.body.device_name || 'Eptoflow Device', hash, plan]
+  );
+  await audit({
+    actorType: 'user', actorId: req.user.id, action: 'device.provision',
+    entityType: 'device', entityId: rows[0].id, metadata: { uid },
+  });
+  res.status(201).json({
+    device: rows[0],
+    // Returned only once — the user must save these into firmware config.
+    provisioning: { device_uid: uid, device_secret: secret },
+    plan: serializePlan(plan),
+  });
+}));
+
+/** Get a single device including latest heartbeat / status */
+router.get('/:id', asyncH(async (req, res) => {
+  const { rows } = await query(
+    `SELECT * FROM devices WHERE id=$1 AND user_id=$2`,
+    [req.params.id, req.user.id]
+  );
+  const device = rows[0];
+  if (!device) throw Errors.notFound('Device');
+  const { rows: logs } = await query(
+    `SELECT * FROM device_status_logs
+      WHERE device_id=$1
+      ORDER BY heartbeat_at DESC
+      LIMIT 1`,
+    [device.id]
+  );
+  const { rows: recentCmds } = await query(
+    `SELECT id, command_type, payload, status, source, created_at, executed_at
+       FROM commands WHERE device_id=$1
+       ORDER BY created_at DESC LIMIT 20`,
+    [device.id]
+  );
+  res.json({
+    device: {
+      id: device.id,
+      device_uid: device.device_uid,
+      device_name: device.device_name,
+      plan_bound: device.plan_bound,
+      status: device.status,
+      last_seen_at: device.last_seen_at,
+      enabled: device.enabled,
+      firmware_version: device.firmware_version,
+    },
+    last_status: logs[0] || null,
+    recent_commands: recentCmds,
+    plan: serializePlan(device.plan_bound),
+  });
+}));
+
+/** Send a command to a device (user-initiated) */
+const commandSchema = z.object({
+  command_type: z.string().min(1),
+  payload: z.record(z.any()).default({}),
+  source: z.enum(['manual', 'voice', 'schedule', 'automation']).default('manual'),
+});
+router.post(
+  '/:id/commands',
+  validate(commandSchema),
+  asyncH(async (req, res) => {
+    const { rows } = await query(
+      `SELECT id, enabled FROM devices WHERE id=$1 AND user_id=$2`,
+      [req.params.id, req.user.id]
+    );
+    const device = rows[0];
+    if (!device) throw Errors.notFound('Device');
+    if (!device.enabled) throw Errors.forbidden('Device disabled by admin');
+    const command = await enqueueCommand({
+      userId: req.user.id,
+      deviceId: device.id,
+      command: req.body,
+      source: req.body.source,
+    });
+    res.status(202).json({ command });
+  })
+);
+
+/** Delete a device */
+router.delete('/:id', asyncH(async (req, res) => {
+  const { rowCount } = await query(
+    `DELETE FROM devices WHERE id=$1 AND user_id=$2`,
+    [req.params.id, req.user.id]
+  );
+  if (!rowCount) throw Errors.notFound('Device');
+  res.json({ ok: true });
+}));
+
+export default router;

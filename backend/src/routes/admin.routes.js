@@ -1,0 +1,213 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authAdmin } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { asyncH, Errors } from '../utils/http.js';
+import { query, tx } from '../db/pool.js';
+import { activateOrRenew } from '../services/subscription.service.js';
+import { audit } from '../utils/audit.js';
+
+const router = Router();
+router.use(authAdmin);
+
+// ----- Dashboard ------------------------------------------------------------
+router.get('/dashboard', asyncH(async (_req, res) => {
+  const [users, activeSubs, expiredSubs, pendingPayments, onlineDevices, offlineDevices] =
+    await Promise.all([
+      query(`SELECT COUNT(*)::int AS c FROM users`),
+      query(`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status='active' AND end_date>NOW()`),
+      query(`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status='expired' OR (status='active' AND end_date<=NOW())`),
+      query(`SELECT COUNT(*)::int AS c FROM payments WHERE verification_status='pending'`),
+      query(`SELECT COUNT(*)::int AS c FROM devices WHERE status='online'`),
+      query(`SELECT COUNT(*)::int AS c FROM devices WHERE status<>'online'`),
+    ]);
+  res.json({
+    totals: {
+      users: users.rows[0].c,
+      active_subscriptions: activeSubs.rows[0].c,
+      expired_subscriptions: expiredSubs.rows[0].c,
+      pending_payments: pendingPayments.rows[0].c,
+      online_devices: onlineDevices.rows[0].c,
+      offline_devices: offlineDevices.rows[0].c,
+    },
+  });
+}));
+
+// ----- Users ----------------------------------------------------------------
+router.get('/users', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at,
+            s.plan_name, s.status AS sub_status, s.end_date
+       FROM users u
+       LEFT JOIN LATERAL (SELECT plan_name, status, end_date FROM subscriptions
+                          WHERE user_id=u.id ORDER BY end_date DESC LIMIT 1) s ON TRUE
+       ORDER BY u.created_at DESC`
+  );
+  res.json({ users: rows });
+}));
+
+router.post('/users/:id/status', asyncH(async (req, res) => {
+  const status = req.body?.status;
+  if (!['active', 'suspended'].includes(status)) throw Errors.badRequest('status must be active|suspended');
+  const { rowCount } = await query(`UPDATE users SET status=$2 WHERE id=$1`, [req.params.id, status]);
+  if (!rowCount) throw Errors.notFound('User');
+  await audit({
+    actorType: 'admin', actorId: req.admin.id, action: `user.${status}`,
+    entityType: 'user', entityId: req.params.id,
+  });
+  res.json({ ok: true });
+}));
+
+// ----- Devices --------------------------------------------------------------
+router.get('/devices', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT d.*, u.email AS user_email FROM devices d
+      LEFT JOIN users u ON u.id=d.user_id
+      ORDER BY d.created_at DESC`
+  );
+  res.json({ devices: rows });
+}));
+
+router.post('/devices/:id/enabled', asyncH(async (req, res) => {
+  const enabled = !!req.body?.enabled;
+  const { rowCount } = await query(`UPDATE devices SET enabled=$2 WHERE id=$1`, [req.params.id, enabled]);
+  if (!rowCount) throw Errors.notFound('Device');
+  await audit({
+    actorType: 'admin', actorId: req.admin.id, action: `device.${enabled ? 'enable' : 'disable'}`,
+    entityType: 'device', entityId: req.params.id,
+  });
+  res.json({ ok: true });
+}));
+
+router.post('/devices/:id/assign', asyncH(async (req, res) => {
+  const { user_id } = req.body || {};
+  const { rowCount } = await query(`UPDATE devices SET user_id=$2 WHERE id=$1`, [req.params.id, user_id || null]);
+  if (!rowCount) throw Errors.notFound('Device');
+  await audit({
+    actorType: 'admin', actorId: req.admin.id, action: 'device.assign',
+    entityType: 'device', entityId: req.params.id, metadata: { user_id },
+  });
+  res.json({ ok: true });
+}));
+
+// ----- Subscriptions / Renew ------------------------------------------------
+router.get('/subscriptions', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT s.*, u.email FROM subscriptions s
+       JOIN users u ON u.id=s.user_id
+       ORDER BY s.created_at DESC LIMIT 500`
+  );
+  res.json({ subscriptions: rows });
+}));
+
+const renewSchema = z.object({
+  user_id: z.string().uuid(),
+  plan: z.enum(['basic', 'premium']),
+  subscription_id: z.string().uuid().optional(),
+  payment_reference: z.string().max(200).optional(),
+});
+router.post('/subscriptions/renew', validate(renewSchema), asyncH(async (req, res) => {
+  const { user_id, plan, subscription_id, payment_reference } = req.body;
+  const sub = await activateOrRenew({
+    subscriptionId: subscription_id,
+    adminId: req.admin.id,
+    userId: user_id,
+    planName: plan,
+    paymentReference: payment_reference,
+  });
+  await query(
+    `INSERT INTO notifications (user_id, title, message, type)
+     VALUES ($1, 'Subscription activated',
+             'Your ' || $2 || ' plan is now active for 30 days.',
+             'billing')`,
+    [user_id, plan]
+  );
+  res.json({ subscription: sub });
+}));
+
+// ----- Payments -------------------------------------------------------------
+router.get('/payments', asyncH(async (req, res) => {
+  const status = req.query.status;
+  const filter = status ? `WHERE verification_status=$1` : '';
+  const params = status ? [status] : [];
+  const { rows } = await query(
+    `SELECT p.*, u.email, u.full_name FROM payments p
+       JOIN users u ON u.id=p.user_id ${filter}
+       ORDER BY p.created_at DESC LIMIT 500`,
+    params
+  );
+  res.json({ payments: rows });
+}));
+
+const verifySchema = z.object({
+  decision: z.enum(['verified', 'rejected']),
+  note: z.string().max(500).optional(),
+});
+router.post('/payments/:id/verify', validate(verifySchema), asyncH(async (req, res) => {
+  const { decision, note } = req.body;
+  const result = await tx(async (c) => {
+    const { rows } = await c.query(
+      `UPDATE payments SET verification_status=$2, verified_by_admin=$3, verified_at=NOW()
+        WHERE id=$1 RETURNING *`,
+      [req.params.id, decision, req.admin.id]
+    );
+    const payment = rows[0];
+    if (!payment) throw Errors.notFound('Payment');
+
+    let subscription = null;
+    if (decision === 'verified') {
+      subscription = await activateOrRenew({
+        subscriptionId: payment.subscription_id,
+        adminId: req.admin.id,
+        userId: payment.user_id,
+        planName: (await c.query(
+          `SELECT plan_name FROM subscriptions WHERE id=$1`,
+          [payment.subscription_id]
+        )).rows[0]?.plan_name || 'basic',
+        paymentReference: payment.payment_reference,
+      });
+      await c.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, 'Payment verified',
+                 'Your payment has been verified. Your subscription is active.',
+                 'billing')`,
+        [payment.user_id]
+      );
+    } else {
+      await c.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, 'Payment rejected',
+                 COALESCE($2, 'Your payment could not be verified. Please contact support.'),
+                 'billing')`,
+        [payment.user_id, note || null]
+      );
+    }
+    return { payment, subscription };
+  });
+  await audit({
+    actorType: 'admin', actorId: req.admin.id, action: `payment.${decision}`,
+    entityType: 'payment', entityId: req.params.id, metadata: { note },
+  });
+  res.json(result);
+}));
+
+// ----- Audit + schedules ---------------------------------------------------
+router.get('/audit-logs', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500`
+  );
+  res.json({ audit_logs: rows });
+}));
+
+router.get('/schedules', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT s.*, u.email, d.device_uid
+       FROM schedules s
+       JOIN users u   ON u.id=s.user_id
+       JOIN devices d ON d.id=s.device_id
+      ORDER BY s.created_at DESC LIMIT 500`
+  );
+  res.json({ schedules: rows });
+}));
+
+export default router;
