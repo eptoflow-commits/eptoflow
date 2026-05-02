@@ -26,6 +26,10 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-brand-50">
+      <div className="w-full max-w-sm space-y-5">
+        <div className="flex justify-center">
+          <img src="/logo.svg" alt="Eptoflow" className="h-24 w-auto" />
+        </div>
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
         <h1 className="text-xl font-semibold text-brand-700">Create your account</h1>
         {err && <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{err}</div>}
@@ -54,6 +58,7 @@ export default function SignupPage() {
           Already have one? <Link href="/login" className="text-brand-700 font-medium">Sign in</Link>
         </p>
       </form>
+      </div>
     </div>
   );
 }

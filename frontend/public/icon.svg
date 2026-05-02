@@ -1,0 +1,47 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wifiG" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1C3B6A"/>
+
+  <!-- Drop outline (white) -->
+  <path d="M256,72 C256,72 138,188 138,278 C138,346 191,408 256,408 C321,408 374,346 374,278 C374,188 256,72 256,72Z"
+        fill="rgba(255,255,255,0.1)" stroke="white" stroke-width="11" stroke-linejoin="round"/>
+
+  <!-- Water fill -->
+  <path d="M147,300 C155,396 205,405 256,405 C307,405 357,396 365,300 Z"
+        fill="rgba(255,255,255,0.18)"/>
+
+  <!-- Plant stem -->
+  <line x1="256" y1="400" x2="256" y2="296" stroke="rgba(255,255,255,0.7)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Left leaf -->
+  <path d="M256,356 C230,320 193,330 207,357 C218,378 253,370 256,356Z" fill="#4ade80"/>
+  <!-- Right leaf -->
+  <path d="M256,329 C283,292 321,309 307,336 C296,356 256,346 256,329Z" fill="#4ade80"/>
+  <!-- Upper leaf -->
+  <path d="M256,308 C238,272 207,280 220,306 C228,324 254,317 256,308Z" fill="#22c55e"/>
+
+  <!-- Dashed connector -->
+  <path d="M258,74 C280,60 320,84 342,152"
+        stroke="rgba(255,255,255,0.6)" stroke-width="5" fill="none"
+        stroke-dasharray="12,10" stroke-linecap="round"/>
+
+  <!-- Connector dot -->
+  <circle cx="342" cy="154" r="11" fill="white" opacity="0.85"/>
+
+  <!-- WiFi arcs (cyan) -->
+  <path d="M360,132 C384,108 420,108 444,132" stroke="url(#wifiG)" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <path d="M367,147 C387,127 415,127 435,147" stroke="url(#wifiG)" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <path d="M374,162 C390,147 412,147 428,162" stroke="url(#wifiG)" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- WiFi dot -->
+  <circle cx="400" cy="173" r="7" fill="#06b6d4"/>
+
+  <!-- Bottom pin -->
+  <circle cx="256" cy="408" r="10" fill="white" opacity="0.6"/>
+</svg>

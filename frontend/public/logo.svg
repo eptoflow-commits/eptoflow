@@ -1,0 +1,73 @@
+<svg viewBox="0 0 680 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dropGrad" x1="50%" y1="100%" x2="60%" y2="0%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="55%" stop-color="#1d6fa4"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="wifiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&amp;family=Lato:ital,wght@1,400&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- ── Water-drop symbol (centred at x=300) ── -->
+  <!-- Drop outline -->
+  <path d="M300,28 C300,28 185,140 185,228 C185,295 237,355 300,355 C363,355 415,295 415,228 C415,140 300,28 300,28Z"
+        fill="none" stroke="url(#dropGrad)" stroke-width="13" stroke-linejoin="round"/>
+
+  <!-- Water fill at bottom of drop -->
+  <path d="M194,252 C200,338 248,352 300,352 C352,352 400,338 406,252 Z"
+        fill="#1e3a8a" opacity="0.55"/>
+
+  <!-- Plant stem -->
+  <line x1="300" y1="348" x2="300" y2="273" stroke="#166534" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Left leaf -->
+  <path d="M300,318 C275,282 240,292 253,319 C263,340 298,332 300,318Z" fill="#22c55e"/>
+  <!-- Right leaf -->
+  <path d="M300,293 C327,256 365,273 351,300 C340,320 300,310 300,293Z" fill="#22c55e"/>
+  <!-- Upper leaf -->
+  <path d="M300,273 C282,238 252,246 264,271 C272,289 298,282 300,273Z" fill="#16a34a"/>
+
+  <!-- Dashed connector from top of drop to dot -->
+  <path d="M302,30 C323,17 363,42 384,108"
+        stroke="#94a3b8" stroke-width="5" fill="none"
+        stroke-dasharray="10,8" stroke-linecap="round"/>
+
+  <!-- Connector dot -->
+  <circle cx="385" cy="110" r="9" fill="#cbd5e1"/>
+
+  <!-- WiFi arcs -->
+  <path d="M402,90 C425,68 458,68 481,90"  stroke="url(#wifiGrad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M409,104 C428,86 453,86 472,104" stroke="url(#wifiGrad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M416,118 C431,105 450,105 465,118" stroke="url(#wifiGrad)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <!-- WiFi dot -->
+  <circle cx="440" cy="128" r="6" fill="#06b6d4"/>
+
+  <!-- Bottom connector pin -->
+  <circle cx="300" cy="355" r="8" fill="#1e3a8a" opacity="0.7"/>
+
+  <!-- ── EPTO flow text ── -->
+  <text y="425" font-size="84" letter-spacing="-1">
+    <tspan x="115" font-family="'Montserrat','Arial Black',sans-serif" font-weight="900" fill="#1a3a6b">EPTO</tspan><tspan font-family="Georgia,'Times New Roman',serif" font-style="italic" fill="#16a34a">flow</tspan>
+  </text>
+
+  <!-- Decorative rule with water drop -->
+  <line x1="115" y1="443" x2="290" y2="443" stroke="#1a3a6b" stroke-width="2" opacity="0.5"/>
+  <line x1="310" y1="443" x2="565" y2="443" stroke="#1a3a6b" stroke-width="2" opacity="0.5"/>
+  <ellipse cx="300" cy="449" rx="7" ry="10" fill="#06b6d4" opacity="0.85"/>
+
+  <!-- Subtitle -->
+  <text x="340" y="475" text-anchor="middle"
+        font-family="'Montserrat',Arial,sans-serif" font-weight="600"
+        font-size="17" fill="#1a3a6b" letter-spacing="3.5">SMART PLANT WATER AUTOMATION</text>
+
+  <!-- Tagline -->
+  <text x="340" y="497" text-anchor="middle"
+        font-family="Arial,sans-serif" font-size="13"
+        fill="#16a34a" letter-spacing="2.5">SAVE WATER • SAVE TIME • GROW BETTER</text>
+</svg>
