@@ -1,4 +1,5 @@
 'use client';
+export const runtime = 'edge';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
