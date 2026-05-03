@@ -40,15 +40,7 @@ const app = express();
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // allow curl/mobile/server requests
-    if (config.allowedOrigins.includes(origin)) return cb(null, true);
-    console.warn(`[cors] blocked origin: ${origin} | allowed: ${config.allowedOrigins.join(', ')}`);
-    cb(null, false); // send proper 403, not 500
-  },
-  credentials: true,
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
