@@ -145,8 +145,8 @@ function QuickSchedule({ outputKey, deviceId, onSaved }: {
           {DURATION_PRESETS.map(p=>(
             <button key={p.s} type="button" onClick={()=>applyPreset(p.s)} style={{
               flex:1, padding:'7px 0', borderRadius:8, border:'none',
-              background: duration===p.s ? meta.color : '#f3f4f6',
-              color: duration===p.s ? '#fff' : '#6b7280',
+              background: durationSecs===p.s ? meta.color : '#f3f4f6',
+              color: durationSecs===p.s ? '#fff' : '#6b7280',
               fontSize:11, fontWeight:700, cursor:'pointer', transition:'all 0.15s',
             }}>{p.l}</button>
           ))}
