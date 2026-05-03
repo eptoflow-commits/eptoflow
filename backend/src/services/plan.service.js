@@ -37,8 +37,7 @@ export function planHasMoisture(planName) {
 }
 
 export function serializePlan(planName) {
-  const f = PLAN_FEATURES[planName];
-  if (!f) return null;
+  const f = PLAN_FEATURES[planName] || PLAN_FEATURES['basic']; // fallback to basic
   return {
     plan: planName,
     maxValves: f.maxValves,
