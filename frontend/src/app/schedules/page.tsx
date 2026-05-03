@@ -24,10 +24,10 @@ const DURATION_PRESETS = [
 ];
 
 const VALVE_LABELS: Record<string, string> = {
-  valve1: '💧 Valve 1',
-  valve2: '🚿 Valve 2',
-  valve3: '🌊 Valve 3',
-  relay1: '⚡ Motor / Relay',
+  valve1: '🪴 Water Plants 1',
+  valve2: '🌿 Water Plants 2',
+  valve3: '🌊 Water Plants 3',
+  relay1: '⚡ Motor',
 };
 
 export default function SchedulesPage() {
