@@ -29,3 +29,4 @@ firmware/**/build/
 firmware/**/*.elf
 firmware/**/*.bin
 firmware/eptoflow_esp32/config.h
+firmware/eptoflow_esp32/config.h
