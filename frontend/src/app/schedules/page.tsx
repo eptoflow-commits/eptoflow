@@ -27,7 +27,7 @@ const VALVE_LABELS: Record<string, string> = {
   valve1: '🪴 Daily Water Plants',
   valve2: '🌿 Occasional Water Plants',
   valve3: '🌊 Misting',
-  relay1: '⚡ Motor',
+  relay1: '⚡ Motor or Light',
 };
 
 export default function SchedulesPage() {
