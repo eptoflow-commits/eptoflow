@@ -42,9 +42,10 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // allow curl/mobile apps
+    if (!origin) return cb(null, true); // allow curl/mobile/server requests
     if (config.allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`Origin ${origin} not allowed by CORS`));
+    console.warn(`[cors] blocked origin: ${origin} | allowed: ${config.allowedOrigins.join(', ')}`);
+    cb(null, false); // send proper 403, not 500
   },
   credentials: true,
 }));
@@ -82,6 +83,7 @@ app.use(errorHandler);
 
 app.listen(config.port, async () => {
   console.log(`[eptoflow] backend listening on :${config.port} (${config.env})`);
+  console.log(`[cors] allowed origins: ${config.allowedOrigins.join(', ')}`);
   await seedAdminIfNeeded();
   startCronJobs();
 });
