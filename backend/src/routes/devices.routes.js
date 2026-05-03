@@ -58,40 +58,61 @@ router.post('/', validate(provisionSchema), asyncH(async (req, res) => {
 
 /** Get a single device including latest heartbeat / status */
 router.get('/:id', asyncH(async (req, res) => {
-  const { rows } = await query(
-    `SELECT * FROM devices WHERE id=$1 AND user_id=$2`,
-    [req.params.id, req.user.id]
-  );
-  const device = rows[0];
-  if (!device) throw Errors.notFound('Device');
-  const { rows: logs } = await query(
-    `SELECT * FROM device_status_logs
-      WHERE device_id=$1
-      ORDER BY id DESC
-      LIMIT 1`,
-    [device.id]
-  );
-  const { rows: recentCmds } = await query(
-    `SELECT id, command_type, payload, status, source, created_at, executed_at
-       FROM commands WHERE device_id=$1
-       ORDER BY created_at DESC LIMIT 20`,
-    [device.id]
-  );
-  res.json({
-    device: {
-      id: device.id,
-      device_uid: device.device_uid,
-      device_name: device.device_name,
-      plan_bound: device.plan_bound,
-      status: device.status,
-      last_seen_at: device.last_seen_at,
-      enabled: device.enabled,
-      firmware_version: device.firmware_version,
-    },
-    last_status: logs[0] || null,
-    recent_commands: recentCmds,
-    plan: serializePlan(device.plan_bound),
-  });
+  let step = 'fetch_device';
+  try {
+    const { rows } = await query(
+      `SELECT * FROM devices WHERE id=$1 AND user_id=$2`,
+      [req.params.id, req.user.id]
+    );
+    const device = rows[0];
+    if (!device) throw Errors.notFound('Device');
+
+    step = 'fetch_status_logs';
+    let logs = [];
+    try {
+      const r = await query(
+        `SELECT * FROM device_status_logs WHERE device_id=$1 ORDER BY id DESC LIMIT 1`,
+        [device.id]
+      );
+      logs = r.rows;
+    } catch (e) {
+      console.error('[device/:id] status_logs query failed:', e.message);
+    }
+
+    step = 'fetch_commands';
+    let recentCmds = [];
+    try {
+      const r = await query(
+        `SELECT id, command_type, payload, status, source, created_at, executed_at
+           FROM commands WHERE device_id=$1 ORDER BY created_at DESC LIMIT 20`,
+        [device.id]
+      );
+      recentCmds = r.rows;
+    } catch (e) {
+      console.error('[device/:id] commands query failed:', e.message);
+    }
+
+    step = 'serialize';
+    res.json({
+      device: {
+        id: device.id,
+        device_uid: device.device_uid,
+        device_name: device.device_name,
+        plan_bound: device.plan_bound,
+        status: device.status,
+        last_seen_at: device.last_seen_at,
+        enabled: device.enabled,
+        firmware_version: device.firmware_version,
+      },
+      last_status: logs[0] || null,
+      recent_commands: recentCmds,
+      plan: serializePlan(device.plan_bound),
+    });
+  } catch (e) {
+    if (e.status) throw e; // re-throw ApiErrors (like notFound)
+    console.error(`[device/:id] failed at step=${step}:`, e.message);
+    throw Errors.server(`Device load failed at ${step}: ${e.message}`);
+  }
 }));
 
 /** Send a command to a device (user-initiated) */

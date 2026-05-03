@@ -79,25 +79,33 @@ export function authDevice(req, _res, next) {
 export function loadSubscription({ requireActive = false } = {}) {
   return async (req, _res, next) => {
     if (!req.user) return next(Errors.unauthorized());
-    const { rows } = await query(
-      `SELECT * FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY end_date DESC
-        LIMIT 1`,
-      [req.user.id]
-    );
-    const sub = rows[0] || null;
-    const isActive = !!(sub && sub.status === 'active' && new Date(sub.end_date) > new Date());
-    req.subscription = sub
-      ? { ...sub, isActive, daysRemaining: sub
-          ? Math.max(0, Math.ceil((new Date(sub.end_date) - new Date()) / 86_400_000))
-          : 0 }
-      : { isActive: false, plan_name: null, daysRemaining: 0, status: 'none' };
+    try {
+      const { rows } = await query(
+        `SELECT * FROM subscriptions
+          WHERE user_id = $1
+          ORDER BY end_date DESC
+          LIMIT 1`,
+        [req.user.id]
+      );
+      const sub = rows[0] || null;
+      const isActive = !!(sub && sub.status === 'active' && new Date(sub.end_date) > new Date());
+      const daysRemaining = sub
+        ? Math.max(0, Math.ceil((new Date(sub.end_date) - new Date()) / 86_400_000))
+        : 0;
+      req.subscription = sub
+        ? { ...sub, isActive, daysRemaining }
+        : { isActive: false, plan_name: null, daysRemaining: 0, status: 'none' };
 
-    if (requireActive && !req.subscription.isActive) {
-      return next(Errors.subscriptionInactive());
+      if (requireActive && !req.subscription.isActive) {
+        return next(Errors.subscriptionInactive());
+      }
+      next();
+    } catch (e) {
+      console.error('[loadSubscription] error:', e.message);
+      // Don't block the request — just set empty subscription
+      req.subscription = { isActive: false, plan_name: null, daysRemaining: 0, status: 'none' };
+      next();
     }
-    next();
   };
 }
 
