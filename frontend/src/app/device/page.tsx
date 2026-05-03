@@ -50,27 +50,50 @@ function Toggle({ on, loading, disabled, color, onToggle }: {
 }
 
 /* ── Mini schedule form (inline per output) ──────────────────────── */
+function timeToMins(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function addMins(t: string, mins: number) {
+  const total = (timeToMins(t) + mins) % (24 * 60);
+  const h = Math.floor(total / 60), m = total % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function diffSecs(start: string, end: string) {
+  let diff = (timeToMins(end) - timeToMins(start)) * 60;
+  if (diff <= 0) diff += 24 * 3600;
+  return Math.min(diff, 3600);
+}
+
 function QuickSchedule({ outputKey, deviceId, onSaved }: {
   outputKey: string; deviceId: string; onSaved: () => void;
 }) {
-  const [time, setTime]     = useState('06:00');
-  const [duration, setDur]  = useState(600);
-  const [days, setDays]     = useState([1,2,3,4,5,6,7]);
-  const [saving, setSaving] = useState(false);
-  const [done, setDone]     = useState(false);
-  const [err, setErr]       = useState('');
+  const [startTime, setStart] = useState('06:00');
+  const [endTime,   setEnd]   = useState('06:10');
+  const [days, setDays]       = useState([1,2,3,4,5,6,7]);
+  const [saving, setSaving]   = useState(false);
+  const [done, setDone]       = useState(false);
+  const [err, setErr]         = useState('');
+
+  const durationSecs = diffSecs(startTime, endTime);
+  const durationLabel = durationSecs >= 3600
+    ? `${durationSecs/3600}hr`
+    : `${Math.round(durationSecs/60)} min`;
+
+  const applyPreset = (secs: number) => setEnd(addMins(startTime, secs / 60));
 
   const toggleDay = (d: number) =>
     setDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev,d].sort());
 
   const save = async () => {
     if (!days.length) { setErr('Pick at least one day'); return; }
+    if (durationSecs < 60) { setErr('End time must be after start time'); return; }
     setSaving(true); setErr('');
     try {
       await api('/api/schedules', { method:'POST', body: JSON.stringify({
         device_id: deviceId, zone_or_output: outputKey,
-        days_of_week: days, start_time: time,
-        duration_seconds: duration, enabled: true,
+        days_of_week: days, start_time: startTime,
+        duration_seconds: durationSecs, enabled: true,
       })});
       setDone(true);
       setTimeout(() => { setDone(false); onSaved(); }, 1500);
@@ -90,22 +113,37 @@ function QuickSchedule({ outputKey, deviceId, onSaved }: {
     <div style={{ paddingTop:14, borderTop:'1.5px dashed #e5e7eb', marginTop:12, animation:'slideDown 0.25s ease' }}>
       {err && <div style={{ fontSize:12, color:'#dc2626', marginBottom:8 }}>⚠️ {err}</div>}
 
-      {/* Time */}
-      <div style={{ marginBottom:10 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Start Time</div>
-        <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{
-          width:'100%', padding:'8px 10px', borderRadius:10, border:`1.5px solid ${meta.color}44`,
-          fontSize:16, fontWeight:700, color:'#1f2937', background:'#f9fafb',
-          outline:'none', textAlign:'center',
-        }}/>
+      {/* Start + End time */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Start Time</div>
+          <input type="time" value={startTime} onChange={e=>setStart(e.target.value)} style={{
+            width:'100%', padding:'8px 6px', borderRadius:10, border:`1.5px solid ${meta.color}44`,
+            fontSize:15, fontWeight:700, color:'#1f2937', background:'#f9fafb',
+            outline:'none', textAlign:'center', boxSizing:'border-box',
+          }}/>
+        </div>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>End Time</div>
+          <input type="time" value={endTime} onChange={e=>setEnd(e.target.value)} style={{
+            width:'100%', padding:'8px 6px', borderRadius:10, border:`1.5px solid ${meta.color}44`,
+            fontSize:15, fontWeight:700, color:'#1f2937', background:'#f9fafb',
+            outline:'none', textAlign:'center', boxSizing:'border-box',
+          }}/>
+        </div>
       </div>
 
-      {/* Duration */}
+      {/* Duration display */}
+      <div style={{ textAlign:'center', fontSize:12, color: meta.color, fontWeight:700, marginBottom:10 }}>
+        ⏱ Duration: {durationLabel}
+      </div>
+
+      {/* Duration presets */}
       <div style={{ marginBottom:10 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Duration</div>
+        <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Quick Presets</div>
         <div style={{ display:'flex', gap:4 }}>
           {DURATION_PRESETS.map(p=>(
-            <button key={p.s} type="button" onClick={()=>setDur(p.s)} style={{
+            <button key={p.s} type="button" onClick={()=>applyPreset(p.s)} style={{
               flex:1, padding:'7px 0', borderRadius:8, border:'none',
               background: duration===p.s ? meta.color : '#f3f4f6',
               color: duration===p.s ? '#fff' : '#6b7280',
@@ -154,9 +192,9 @@ function QuickSchedule({ outputKey, deviceId, onSaved }: {
 }
 
 /* ── Output card ─────────────────────────────────────────────────── */
-function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, onTimed, onScheduleSaved }: {
+function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, onScheduleSaved }: {
   outputKey: string; isOn: boolean; loading: boolean; isOnline: boolean;
-  deviceId: string; onToggle: ()=>void; onTimed?: ()=>void; onScheduleSaved: ()=>void;
+  deviceId: string; onToggle: ()=>void; onScheduleSaved: ()=>void;
 }) {
   const [showSchedule, setShowSchedule] = useState(false);
   const meta = OUTPUT_META[outputKey] || OUTPUT_META.valve1;
@@ -206,37 +244,14 @@ function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, on
         <Toggle on={isOn} loading={loading} disabled={!isOnline} color={meta.color} onToggle={onToggle}/>
       </div>
 
-      {/* Action buttons */}
-      {onTimed && (
-        <div style={{ display:'flex', gap:6, marginBottom: showSchedule ? 0 : 0 }}>
-          <button onClick={onTimed} disabled={!isOnline||loading} style={{
-            flex:1, padding:'8px 0', borderRadius:10,
-            border:`1.5px solid ${isOn ? meta.color+'44' : '#e5e7eb'}`,
-            background: isOn ? 'rgba(255,255,255,0.6)' : '#f9fafb',
-            color: isOn ? meta.color : '#6b7280',
-            fontSize:12, fontWeight:700, cursor: !isOnline?'not-allowed':'pointer',
-            opacity: !isOnline||loading ? 0.5 : 1, transition:'all 0.2s',
-          }}>⏱ 2 min</button>
-          <button onClick={()=>setShowSchedule(s=>!s)} style={{
-            flex:1, padding:'8px 0', borderRadius:10,
-            border:`1.5px solid ${showSchedule ? meta.color : '#e5e7eb'}`,
-            background: showSchedule ? meta.color+'15' : '#f9fafb',
-            color: showSchedule ? meta.color : '#6b7280',
-            fontSize:12, fontWeight:700, cursor:'pointer', transition:'all 0.2s',
-          }}>📅 Schedule</button>
-        </div>
-      )}
-
-      {/* Motor-only schedule button (no timed) */}
-      {!onTimed && (
-        <button onClick={()=>setShowSchedule(s=>!s)} style={{
-          width:'100%', padding:'8px 0', borderRadius:10, marginTop:8,
-          border:`1.5px solid ${showSchedule ? meta.color : '#e5e7eb'}`,
-          background: showSchedule ? meta.color+'15' : '#f9fafb',
-          color: showSchedule ? meta.color : '#6b7280',
-          fontSize:12, fontWeight:700, cursor:'pointer', transition:'all 0.2s',
-        }}>📅 Schedule</button>
-      )}
+      {/* Schedule button */}
+      <button onClick={()=>setShowSchedule(s=>!s)} style={{
+        width:'100%', padding:'8px 0', borderRadius:10, marginTop:10,
+        border:`1.5px solid ${showSchedule ? meta.color : '#e5e7eb'}`,
+        background: showSchedule ? meta.color+'18' : '#f9fafb',
+        color: showSchedule ? meta.color : '#6b7280',
+        fontSize:12, fontWeight:700, cursor:'pointer', transition:'all 0.2s',
+      }}>📅 {showSchedule ? 'Hide Schedule' : 'Set Schedule'}</button>
 
       {showSchedule && (
         <QuickSchedule
@@ -399,7 +414,6 @@ function DeviceContent({ id }: { id: string }) {
             isOn={isOn(v)} loading={loadingKey===v}
             isOnline={isOnline} deviceId={id}
             onToggle={()=>toggle(v)}
-            onTimed={()=>{ setOptimistic(s=>({...s,[v]:true})); send('water_for',{target:v,duration:120}); }}
             onScheduleSaved={load}
           />
         ))}
