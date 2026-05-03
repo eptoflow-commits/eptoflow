@@ -50,6 +50,19 @@ router.post('/payment-intent', validate(payIntentSchema), asyncH(async (req, res
   res.status(201).json({ subscription, payment: rows[0] });
 }));
 
+// User requests Premium upgrade — admin gets notified
+router.post('/request-upgrade', asyncH(async (req, res) => {
+  await query(
+    `INSERT INTO notifications (user_id, title, message, type)
+     VALUES ($1, 'Premium plan requested',
+             'User ' || $2 || ' has requested an upgrade to the Premium plan.',
+             'premium_request')`,
+    [req.user.id, req.user.email]
+  );
+  await audit({ actorType: 'user', actorId: req.user.id, action: 'subscription.request_premium' });
+  res.json({ ok: true });
+}));
+
 router.get('/payments', asyncH(async (req, res) => {
   const { rows } = await query(
     `SELECT * FROM payments WHERE user_id=$1 ORDER BY created_at DESC`,

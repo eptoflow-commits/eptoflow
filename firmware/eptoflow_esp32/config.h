@@ -8,19 +8,15 @@
 #pragma once
 
 // ---------- Wi-Fi ----------
-#define EPF_WIFI_SSID         "YOUR_WIFI_SSID"
-#define EPF_WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"
+#define EPF_WIFI_SSID         "eptosi"
+#define EPF_WIFI_PASSWORD     "eptosi332"
 
 // ---------- Backend ----------
-// Use HTTP for local dev (e.g. http://192.168.1.5:4000).
-// Use HTTPS in production (e.g. https://api.example.com).
-#define EPF_API_BASE_URL      "http://192.168.1.5:4000"
+#define EPF_API_BASE_URL      "https://eptoflow-api.onrender.com"
 
 // ---------- Device identity ----------
-// These are displayed ONCE in the web UI when you claim a device.
-// After you register a device in the PWA dashboard, save the values here.
-#define EPF_DEVICE_UID        "EPT-XXXXXX-XXXXXX"
-#define EPF_DEVICE_SECRET     "REPLACE_WITH_SERVER_ISSUED_SECRET"
+#define EPF_DEVICE_UID     "EPT-35B881-4C48F8"
+#define EPF_DEVICE_SECRET  "7955653b1a86da4d17c3d7874e96b01ce6c3281b233a34e4"
 #define EPF_FIRMWARE_VERSION  "1.0.0"
 
 // ---------- GPIO pins (active LOW common for relay boards) ----------

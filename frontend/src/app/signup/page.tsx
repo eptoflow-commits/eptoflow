@@ -1,63 +1,20 @@
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth';
 
 export default function SignupPage() {
-  const { signup } = useAuth();
-  const router = useRouter();
-  const [full_name, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null); setBusy(true);
-    try {
-      await signup({ full_name, email, phone: phone || undefined, password });
-      router.replace('/subscription');
-    } catch (e: any) { setErr(e.message || 'Signup failed'); }
-    finally { setBusy(false); }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-brand-50">
-      <div className="w-full max-w-sm space-y-5">
-        <div className="flex justify-center">
-          <img src="/logo.svg" alt="Eptoflow" className="h-24 w-auto" />
+    <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-brand-50 via-white to-brand-100">
+      <div className="w-full max-w-sm text-center space-y-4">
+        <img src="/logo.svg" alt="Eptoflow" className="h-20 w-auto mx-auto" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-6 space-y-3">
+          <div className="text-3xl">🔒</div>
+          <h1 className="text-lg font-bold text-gray-900">Access by invitation only</h1>
+          <p className="text-sm text-gray-600">
+            Accounts are created by your Eptoflow administrator. Please contact your admin to get access.
+          </p>
+          <Link href="/login" className="btn-primary w-full inline-block text-center mt-2">
+            Back to Sign in
+          </Link>
         </div>
-      <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-semibold text-brand-700">Create your account</h1>
-        {err && <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{err}</div>}
-        <div>
-          <label className="label">Full name</label>
-          <input className="input" value={full_name} onChange={(e) => setFullName(e.target.value)} required />
-        </div>
-        <div>
-          <label className="label">Email</label>
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
-        <div>
-          <label className="label">Phone (optional)</label>
-          <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Password</label>
-          <input className="input" type="password" minLength={8}
-                 value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <p className="text-xs text-gray-500 mt-1">At least 8 characters.</p>
-        </div>
-        <button className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Creating…' : 'Create account'}
-        </button>
-        <p className="text-sm text-gray-600 text-center">
-          Already have one? <Link href="/login" className="text-brand-700 font-medium">Sign in</Link>
-        </p>
-      </form>
       </div>
     </div>
   );

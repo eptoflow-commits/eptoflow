@@ -21,6 +21,8 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 #include "config.h"
 #include "Net.h"
@@ -160,16 +162,20 @@ static void readMoisture() {
 
 // ---------- Arduino ----------
 void setup() {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
   Serial.begin(115200);
-  delay(100);
+  delay(500);
   Serial.println();
   Serial.printf("Eptoflow firmware v%s starting...\n", EPF_FIRMWARE_VERSION);
+  Serial.println("[setup] init outputs...");
   Outputs::setup();
-  Net::wifiBegin();
+  Serial.println("[setup] outputs OK");
   analogReadResolution(12);
+  Serial.println("[setup] done — wifi will start in loop");
 }
 
 void loop() {
+  yield();
   Net::loop();
   Outputs::loop();
   unsigned long now = millis();
