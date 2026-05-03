@@ -218,7 +218,7 @@ function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, on
       )}
 
       {/* Icon + label + toggle row */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: onTimed ? 12 : 0 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: 12 }}>
         {/* Icon */}
         <div style={{
           width:44, height:44, borderRadius:14,
