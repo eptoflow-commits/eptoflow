@@ -170,6 +170,21 @@ void setup() {
   Serial.println("[setup] init outputs...");
   Outputs::setup();
   Serial.println("[setup] outputs OK");
+
+#if EPF_STARTUP_RELAY_TEST
+  // Startup self-test: click each relay in sequence so you can verify
+  // which GPIO maps to which physical relay channel on your board.
+  Serial.println("[test] relay self-test START");
+  const char* labels[Outputs::COUNT] = { "CH1 valve1 (GPIO 19)", "CH2 valve2 (GPIO 22)",
+                                          "CH3 valve3 (GPIO 21)", "CH4 relay1 (GPIO 23)" };
+  for (int i = 0; i < Outputs::COUNT; ++i) {
+    Serial.printf("[test] firing %s\n", labels[i]);
+    Outputs::turnOn((Outputs::Id)i, 500);
+    delay(700);   // 500 ms ON + 200 ms gap before next
+  }
+  Serial.println("[test] relay self-test DONE — set EPF_STARTUP_RELAY_TEST 0 for production");
+#endif
+
   analogReadResolution(12);
   Serial.println("[setup] done — wifi will start in loop");
 }

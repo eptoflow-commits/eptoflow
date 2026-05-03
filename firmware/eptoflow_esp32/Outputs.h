@@ -40,12 +40,21 @@ inline void setup() {
   states[VALVE3].pin = EPF_VALVE3_PIN;
   states[RELAY1].pin = EPF_RELAY1_PIN;
   for (int i = 0; i < COUNT; ++i) {
+    // CRITICAL for active-LOW relay boards:
+    // Write the OFF level BEFORE calling pinMode(OUTPUT).
+    // If pinMode is called first, the pin momentarily floats LOW
+    // which energises the relay. Writing first avoids this glitch.
+#if EPF_ACTIVE_LOW_OUTPUTS
+    digitalWrite(states[i].pin, HIGH);   // HIGH = relay OFF for active-LOW boards
+#else
+    digitalWrite(states[i].pin, LOW);    // LOW  = relay OFF for active-HIGH boards
+#endif
     pinMode(states[i].pin, OUTPUT);
-    writePhysical(states[i].pin, false);
     states[i].on = false;
     states[i].turnedOnAt = 0;
     states[i].plannedOffAt = 0;
     states[i].lastOffAt = 0;
+    Serial.printf("[out] pin %d → OFF (init)\n", states[i].pin);
   }
 }
 
