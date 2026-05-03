@@ -96,7 +96,7 @@ export default function DashboardPage() {
         ) : (
           <div className="grid gap-2">
             {devices.map((d) => (
-              <Link key={d.id} href={`/device/${d.id}`}
+              <Link key={d.id} href={`/device?id=${d.id}`}
                     className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3 hover:border-brand-200 transition-colors">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${
                   d.status === 'online' ? 'bg-brand-50' : 'bg-gray-100'
