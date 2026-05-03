@@ -15,8 +15,8 @@
 #define EPF_API_BASE_URL      "https://eptoflow-api.onrender.com"
 
 // ---------- Device identity ----------
-#define EPF_DEVICE_UID     "EPT-35B881-4C48F8"
-#define EPF_DEVICE_SECRET  "7955653b1a86da4d17c3d7874e96b01ce6c3281b233a34e4"
+#define EPF_DEVICE_UID     "EPT-720FD2-FDADDE"
+#define EPF_DEVICE_SECRET  "4ac90f360a6d9784e1e1b2db274166734b2ec17fdc13a6a5"
 #define EPF_FIRMWARE_VERSION  "1.0.0"
 
 // ---------- GPIO pins (active LOW common for relay boards) ----------

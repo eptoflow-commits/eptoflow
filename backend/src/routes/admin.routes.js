@@ -22,7 +22,7 @@ router.get('/dashboard', asyncH(async (_req, res) => {
       query(`SELECT COUNT(*)::int AS c FROM payments WHERE verification_status='pending'`),
       query(`SELECT COUNT(*)::int AS c FROM devices WHERE status='online'`),
       query(`SELECT COUNT(*)::int AS c FROM devices WHERE status<>'online'`),
-      query(`SELECT COUNT(*)::int AS c FROM notifications WHERE type='premium_request' AND read=false`),
+      query(`SELECT COUNT(*)::int AS c FROM notifications WHERE type='premium_request' AND is_read=false`),
     ]);
   res.json({
     totals: {
@@ -234,7 +234,7 @@ router.get('/premium-requests', asyncH(async (_req, res) => {
 }));
 
 router.post('/premium-requests/:id/dismiss', asyncH(async (req, res) => {
-  await query(`UPDATE notifications SET read=true WHERE id=$1`, [req.params.id]);
+  await query(`UPDATE notifications SET is_read=true WHERE id=$1`, [req.params.id]);
   res.json({ ok: true });
 }));
 
