@@ -53,9 +53,10 @@
 // Moisture sensor (ADC1 only — GPIO 32..39)
 #define EPF_MOISTURE_PIN      34
 
-// 1 = relay board is active LOW (standard for most relay modules)
-// 0 = active HIGH
-#define EPF_ACTIVE_LOW_OUTPUTS 1
+// 0 = active HIGH — this PCB uses NPN transistor drivers between GPIO and relay coil.
+//     GPIO HIGH → transistor ON → relay fires. GPIO LOW → relay OFF.
+// 1 = active LOW  — use only if relay fires on LOW directly (no transistor driver).
+#define EPF_ACTIVE_LOW_OUTPUTS 0
 
 // ---------- Startup relay self-test ----------
 // Set to 1 to click each relay once at boot (helps verify pin mapping).
