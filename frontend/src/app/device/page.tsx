@@ -104,11 +104,9 @@ function OutputCard({ label, icon, isOn, loading, isOnline, onToggle, onTimed }:
 
 /* ── Device content ──────────────────────────────────────────────── */
 function DeviceContent({ id }: { id: string }) {
-  const [data, setData]           = useState<Detail | null>(null);
-  const [err, setErr]             = useState<string | null>(null);
-  // optimistic: tracks predicted on/off state immediately after tap
+  const [data, setData]             = useState<Detail | null>(null);
+  const [err, setErr]               = useState<string | null>(null);
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
-  // loading: which output is mid-request
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const timerRef = useRef<any>(null);
 
@@ -117,13 +115,23 @@ function DeviceContent({ id }: { id: string }) {
       const d = await api<Detail>(`/api/devices/${id}`);
       setData(d);
       setErr(null);
-      setOptimistic({});      // confirmed by server → clear optimistic
+      // Only clear optimistic keys where server has caught up to our prediction.
+      // This prevents the poll from reverting the switch before the relay fires.
+      setOptimistic(prev => {
+        if (!Object.keys(prev).length) return prev;
+        const next = { ...prev };
+        for (const key of Object.keys(next)) {
+          const serverVal = !!d.last_status?.[`${key}_state`];
+          if (serverVal === next[key]) delete next[key]; // confirmed — remove
+        }
+        return next;
+      });
     } catch (e: any) { setErr(e.message || 'Failed to load device'); }
   }, [id]);
 
   useEffect(() => {
     load();
-    timerRef.current = setInterval(load, 5000);
+    timerRef.current = setInterval(load, 2000); // poll every 2 s for snappier feedback
     return () => clearInterval(timerRef.current);
   }, [load]);
 

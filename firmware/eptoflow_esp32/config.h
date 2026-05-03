@@ -65,8 +65,8 @@
 #define EPF_STARTUP_RELAY_TEST 0
 
 // ---------- Timing ----------
-#define EPF_HEARTBEAT_MS          30000UL   // 30 s
-#define EPF_POLL_COMMANDS_MS       5000UL   //  5 s
+#define EPF_HEARTBEAT_MS          20000UL   // 20 s — also keeps Render server warm
+#define EPF_POLL_COMMANDS_MS       1000UL   //  1 s — relay fires within 1 s of tap
 #define EPF_MOISTURE_READ_MS      15000UL   // 15 s
 #define EPF_OUTPUT_SAFETY_MAX_MS  (30UL * 60UL * 1000UL)  // 30 min hard ceiling
 #define EPF_COOLDOWN_MS           30000UL   // 30 s min gap between ON→ON on same output
