@@ -19,7 +19,7 @@ export const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     deviceExpiresIn: process.env.DEVICE_JWT_EXPIRES_IN || '30d',
   },
-  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://eptoflow.pages.dev')
     .split(',').map(s => s.trim()).filter(Boolean),
   admin: {
     defaultEmail: process.env.DEFAULT_ADMIN_EMAIL || 'admin@eptoflow.local',
