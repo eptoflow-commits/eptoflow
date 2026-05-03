@@ -67,7 +67,7 @@ router.get('/:id', asyncH(async (req, res) => {
   const { rows: logs } = await query(
     `SELECT * FROM device_status_logs
       WHERE device_id=$1
-      ORDER BY heartbeat_at DESC
+      ORDER BY id DESC
       LIMIT 1`,
     [device.id]
   );
