@@ -24,9 +24,9 @@ const DURATION_PRESETS = [
 ];
 
 const VALVE_LABELS: Record<string, string> = {
-  valve1: '🪴 Water Plants 1',
-  valve2: '🌿 Water Plants 2',
-  valve3: '🌊 Water Plants 3',
+  valve1: '🪴 Daily Water Plants',
+  valve2: '🌿 Occasional Water Plants',
+  valve3: '🌊 Misting',
   relay1: '⚡ Motor',
 };
 
