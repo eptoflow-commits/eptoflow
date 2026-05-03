@@ -63,7 +63,7 @@ export default function DashboardPage() {
             <div className="mt-3 bg-white/20 rounded-full h-1.5">
               <div
                 className="bg-white rounded-full h-1.5 transition-all"
-                style={{ width: `${Math.min(100, (sub.daysRemaining / 30) * 100)}%` }}
+                style={{ width: `${Math.min(100, ((sub.daysRemaining ?? 0) / 30) * 100)}%` }}
               />
             </div>
           </div>
