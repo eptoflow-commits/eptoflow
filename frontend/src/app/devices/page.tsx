@@ -63,7 +63,7 @@ export default function DevicesPage() {
       <div className="grid gap-2">
         {devices.map((d) => (
           <div key={d.id} className="card flex items-center justify-between">
-            <Link href={`/device/${d.id}`} className="flex-1">
+            <Link href={`/device?id=${d.id}`} className="flex-1">
               <div className="font-medium">{d.device_name}</div>
               <div className="text-xs text-gray-500">{d.device_uid} · {d.plan_bound}</div>
             </Link>
