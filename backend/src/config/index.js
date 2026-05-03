@@ -31,8 +31,8 @@ export const config = {
   subscription: {
     durationDays: parseInt(process.env.SUBSCRIPTION_DAYS || '30', 10),
     plans: {
-      basic:   { name: 'basic',   amount: 2.99 },
-      premium: { name: 'premium', amount: 3.99 },
+      basic:   { name: 'basic',   amount: 249 },
+      premium: { name: 'premium', amount: 499 },
     },
   },
 };

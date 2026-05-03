@@ -5,7 +5,7 @@ import SwRegister from '@/components/SwRegister';
 
 export const metadata: Metadata = {
   title: 'Eptoflow — Plant Automation',
-  description: 'Smart irrigation & plant automation for ESP32',
+  description: 'Smart irrigation & plant automation — monitor, schedule and automate your garden from anywhere.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,

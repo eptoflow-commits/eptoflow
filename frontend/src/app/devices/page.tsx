@@ -49,12 +49,12 @@ export default function DevicesPage() {
         <div className="card mb-4 border-brand-200">
           <div className="font-semibold text-brand-700 mb-2">New device credentials</div>
           <p className="text-sm text-gray-700 mb-2">
-            Save these into your ESP32 <code>config.h</code>. They are shown only once.
+            Copy these credentials into your device configuration. They are shown only once — store them safely.
           </p>
-          <pre className="bg-gray-50 text-xs p-2 rounded border overflow-x-auto">
-{`#define EPF_DEVICE_UID     "${newDevice.device_uid}"
-#define EPF_DEVICE_SECRET  "${newDevice.device_secret}"`}
-          </pre>
+          <div className="bg-gray-50 text-xs p-3 rounded border space-y-1">
+            <div><span className="text-gray-500 select-none">Device UID: </span><code className="font-semibold text-gray-800">{newDevice.device_uid}</code></div>
+            <div><span className="text-gray-500 select-none">Device Secret: </span><code className="font-semibold text-gray-800">{newDevice.device_secret}</code></div>
+          </div>
           <button className="btn-secondary mt-3" onClick={() => setNewDevice(null)}>
             I saved the secret
           </button>

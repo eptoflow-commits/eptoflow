@@ -43,15 +43,23 @@ function PaymentInner() {
     );
   }
 
+  const planAmount = plan === 'premium' ? '₹499' : '₹249';
+
   return (
     <form onSubmit={submit} className="card space-y-3">
-      <div>
-        <div className="text-sm text-gray-500">Plan</div>
-        <div className="text-lg font-semibold capitalize">{plan}</div>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm text-gray-500">Plan</div>
+          <div className="text-lg font-semibold capitalize">{plan}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-brand-700">{planAmount}</div>
+          <div className="text-xs text-gray-400">+ GST / 30 days</div>
+        </div>
       </div>
       <p className="text-sm text-gray-600">
-        Pay the plan amount via your preferred method (UPI, bank transfer, etc.) and submit
-        the payment reference below. An admin will verify it manually.
+        Pay via UPI, bank transfer, or any preferred method and submit the transaction
+        reference below. Our team will verify and activate your plan within 24 hours.
       </p>
       {err && <div className="text-sm text-red-600">{err}</div>}
       <div>
