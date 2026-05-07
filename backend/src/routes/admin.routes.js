@@ -248,10 +248,16 @@ router.post('/payments/:id/verify', validate(verifySchema), asyncH(async (req, r
 // ----- Premium Requests -----------------------------------------------------
 router.get('/premium-requests', asyncH(async (_req, res) => {
   const { rows } = await query(
-    `SELECT n.*, u.email, u.full_name FROM notifications n
+    `SELECT n.*, u.email, u.full_name, u.phone,
+            s.plan_name AS current_plan, s.status AS sub_status, s.end_date
+       FROM notifications n
        JOIN users u ON u.id=n.user_id
-       WHERE n.type='premium_request'
-       ORDER BY n.created_at DESC LIMIT 200`
+       LEFT JOIN LATERAL (
+         SELECT plan_name, status, end_date FROM subscriptions
+          WHERE user_id=n.user_id ORDER BY end_date DESC LIMIT 1
+       ) s ON TRUE
+      WHERE n.type='premium_request'
+      ORDER BY n.created_at DESC LIMIT 200`
   );
   res.json({ requests: rows });
 }));
