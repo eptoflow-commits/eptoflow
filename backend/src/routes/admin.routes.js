@@ -14,7 +14,7 @@ router.use(authAdmin);
 
 // ----- Dashboard ------------------------------------------------------------
 router.get('/dashboard', asyncH(async (_req, res) => {
-  const [users, activeSubs, expiredSubs, pendingPayments, onlineDevices, offlineDevices, premiumReqs] =
+  const [users, activeSubs, expiredSubs, pendingPayments, onlineDevices, offlineDevices, premiumReqs, newContacts] =
     await Promise.all([
       query(`SELECT COUNT(*)::int AS c FROM users`),
       query(`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status='active' AND end_date>NOW()`),
@@ -23,6 +23,7 @@ router.get('/dashboard', asyncH(async (_req, res) => {
       query(`SELECT COUNT(*)::int AS c FROM devices WHERE status='online'`),
       query(`SELECT COUNT(*)::int AS c FROM devices WHERE status<>'online'`),
       query(`SELECT COUNT(*)::int AS c FROM notifications WHERE type='premium_request' AND is_read=false`),
+      query(`SELECT COUNT(*)::int AS c FROM contact_requests WHERE status='new'`),
     ]);
   res.json({
     totals: {
@@ -33,8 +34,30 @@ router.get('/dashboard', asyncH(async (_req, res) => {
       online_devices: onlineDevices.rows[0].c,
       offline_devices: offlineDevices.rows[0].c,
       premium_requests: premiumReqs.rows[0].c,
+      new_contacts: newContacts.rows[0].c,
     },
   });
+}));
+
+// ----- Contact Requests (pre-signup enquiries) --------------------------------
+router.get('/contact-requests', asyncH(async (_req, res) => {
+  const { rows } = await query(
+    `SELECT * FROM contact_requests ORDER BY created_at DESC LIMIT 200`
+  );
+  res.json({ contact_requests: rows });
+}));
+
+router.patch('/contact-requests/:id', asyncH(async (req, res) => {
+  const { status } = req.body;
+  if (!['new','contacted','done'].includes(status)) {
+    return res.status(400).json({ error: { message: 'Invalid status' } });
+  }
+  const { rows } = await query(
+    `UPDATE contact_requests SET status=$1 WHERE id=$2 RETURNING *`,
+    [status, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: { message: 'Not found' } });
+  res.json({ contact_request: rows[0] });
 }));
 
 // ----- Users ----------------------------------------------------------------

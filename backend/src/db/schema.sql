@@ -196,6 +196,21 @@ CREATE TABLE IF NOT EXISTS voice_logs (
 CREATE INDEX IF NOT EXISTS idx_voice_user ON voice_logs(user_id, created_at DESC);
 
 -- --------------------------------------------------------------------------
+-- contact_requests (pre-signup enquiries — no user_id required)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS contact_requests (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name   VARCHAR(120) NOT NULL,
+    email       VARCHAR(160) NOT NULL,
+    phone       VARCHAR(24),
+    plan        VARCHAR(20) NOT NULL DEFAULT 'basic',  -- basic|premium|custom
+    message     TEXT,
+    status      VARCHAR(20) NOT NULL DEFAULT 'new',    -- new|contacted|done
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_contact_requests_status ON contact_requests(status, created_at DESC);
+
+-- --------------------------------------------------------------------------
 -- updated_at triggers
 -- --------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$

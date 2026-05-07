@@ -6,16 +6,16 @@ import { api } from '@/lib/api';
 type Totals = {
   users: number; active_subscriptions: number; expired_subscriptions: number;
   pending_payments: number; online_devices: number; offline_devices: number;
-  premium_requests: number;
+  premium_requests: number; new_contacts: number;
 };
 
 const STAT_CARDS = [
+  { key: 'new_contacts',         label: 'New Requests',       icon: '📬', color: 'bg-red-50 text-red-700',      href: '/admin/contact-requests' },
   { key: 'users',                label: 'Total Users',        icon: '👥', color: 'bg-blue-50 text-blue-700',    href: '/admin/users' },
   { key: 'online_devices',       label: 'Online Devices',     icon: '📡', color: 'bg-green-50 text-green-700',  href: '/admin/devices' },
   { key: 'active_subscriptions', label: 'Active Plans',       icon: '✅', color: 'bg-brand-50 text-brand-700', href: '/admin/subscriptions' },
   { key: 'pending_payments',     label: 'Pending Payments',   icon: '💳', color: 'bg-amber-50 text-amber-700',  href: '/admin/payments' },
-  { key: 'premium_requests',     label: 'Premium Requests',   icon: '⭐', color: 'bg-purple-50 text-purple-700', href: '/admin/subscriptions' },
-  { key: 'expired_subscriptions',label: 'Expired Plans',      icon: '⏰', color: 'bg-red-50 text-red-700',      href: '/admin/subscriptions' },
+  { key: 'expired_subscriptions',label: 'Expired Plans',      icon: '⏰', color: 'bg-purple-50 text-purple-700', href: '/admin/subscriptions' },
 ];
 
 export default function AdminDashboard() {
@@ -54,11 +54,11 @@ export default function AdminDashboard() {
             <div className="text-3xl font-bold text-gray-900 group-hover:text-brand-600 transition-colors">
               {t[c.key as keyof Totals]}
             </div>
+            {c.key === 'new_contacts' && t.new_contacts > 0 && (
+              <div className="mt-1 text-xs text-red-600 font-medium">Needs follow-up →</div>
+            )}
             {c.key === 'pending_payments' && t.pending_payments > 0 && (
               <div className="mt-1 text-xs text-amber-600 font-medium">Needs review →</div>
-            )}
-            {c.key === 'premium_requests' && t.premium_requests > 0 && (
-              <div className="mt-1 text-xs text-purple-600 font-medium">Pending requests →</div>
             )}
           </Link>
         ))}

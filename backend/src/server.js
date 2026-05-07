@@ -10,6 +10,30 @@ import { pool } from './db/pool.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { startCronJobs } from './jobs/index.js';
 
+/** Ensure contact_requests table exists (idempotent). */
+async function ensureContactRequestsTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS contact_requests (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        full_name   VARCHAR(120) NOT NULL,
+        email       VARCHAR(160) NOT NULL,
+        phone       VARCHAR(24),
+        plan        VARCHAR(20) NOT NULL DEFAULT 'basic',
+        message     TEXT,
+        status      VARCHAR(20) NOT NULL DEFAULT 'new',
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_contact_requests_status
+        ON contact_requests(status, created_at DESC)
+    `);
+  } catch (e) {
+    console.warn('[startup] contact_requests table check skipped:', e.message);
+  }
+}
+
 /** Auto-seed default admin if none exists — runs once on startup. */
 async function seedAdminIfNeeded() {
   try {
@@ -28,6 +52,7 @@ async function seedAdminIfNeeded() {
 }
 
 import authRoutes from './routes/auth.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 import devicesRoutes from './routes/devices.routes.js';
 import deviceApiRoutes from './routes/deviceApi.routes.js';
 import schedulesRoutes from './routes/schedules.routes.js';
@@ -58,6 +83,7 @@ app.get('/health', async (_req, res) => {
 
 // Public / user routes
 app.use('/api/auth', authRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api/devices', devicesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
@@ -76,6 +102,7 @@ app.use(errorHandler);
 app.listen(config.port, async () => {
   console.log(`[eptoflow] backend listening on :${config.port} (${config.env})`);
   console.log(`[cors] allowed origins: ${config.allowedOrigins.join(', ')}`);
+  await ensureContactRequestsTable();
   await seedAdminIfNeeded();
   startCronJobs();
 });

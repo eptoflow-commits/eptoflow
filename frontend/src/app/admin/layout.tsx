@@ -5,13 +5,14 @@ import { useEffect, useState } from 'react';
 import { tokens } from '@/lib/api';
 
 const NAV = [
-  { href: '/admin',                label: 'Dashboard' },
-  { href: '/admin/users',          label: 'Users' },
-  { href: '/admin/devices',        label: 'Devices' },
-  { href: '/admin/subscriptions',  label: 'Subscriptions' },
-  { href: '/admin/payments',       label: 'Payments' },
-  { href: '/admin/schedules',      label: 'Schedules' },
-  { href: '/admin/audit',          label: 'Audit' },
+  { href: '/admin',                      label: 'Dashboard' },
+  { href: '/admin/contact-requests',     label: '📬 Requests' },
+  { href: '/admin/users',                label: 'Users' },
+  { href: '/admin/devices',              label: 'Devices' },
+  { href: '/admin/subscriptions',        label: 'Subscriptions' },
+  { href: '/admin/payments',             label: 'Payments' },
+  { href: '/admin/schedules',            label: 'Schedules' },
+  { href: '/admin/audit',                label: 'Audit' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
