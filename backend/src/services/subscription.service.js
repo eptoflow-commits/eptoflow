@@ -31,27 +31,30 @@ export async function createPendingSubscription(userId, planName) {
 }
 
 /**
- * Activates or renews a subscription for +30 days, called by admin verification.
+ * Activates or renews a subscription from NOW() for the given number of days.
+ * Always resets end_date from today — does NOT stack on top of existing end_date.
  */
-export async function activateOrRenew({ subscriptionId, adminId, userId, planName, paymentReference }) {
+export async function activateOrRenew({ subscriptionId, adminId, userId, planName, paymentReference, days }) {
+  const durationDays = days || config.subscription.durationDays;
   // Reuse row if it exists and belongs to user; otherwise create a new row.
   if (subscriptionId) {
     const { rows } = await query(
       `UPDATE subscriptions
          SET status='active',
              start_date=NOW(),
-             end_date = GREATEST(end_date, NOW()) + INTERVAL '${config.subscription.durationDays} days',
-             manually_verified_by_admin=$2,
+             end_date = NOW() + ($2 || ' days')::INTERVAL,
+             manually_verified_by_admin=$3,
              renewed_at=NOW(),
-             payment_reference=COALESCE($3, payment_reference)
+             payment_reference=COALESCE($4, payment_reference)
        WHERE id=$1
        RETURNING *`,
-      [subscriptionId, adminId, paymentReference || null]
+      [subscriptionId, String(durationDays), adminId, paymentReference || null]
     );
     if (rows[0]) {
       await audit({
         actorType: 'admin', actorId: adminId, action: 'subscription.activate',
-        entityType: 'subscription', entityId: rows[0].id, metadata: { plan_name: rows[0].plan_name },
+        entityType: 'subscription', entityId: rows[0].id,
+        metadata: { plan_name: rows[0].plan_name, days: durationDays },
       });
       return rows[0];
     }
@@ -62,14 +65,15 @@ export async function activateOrRenew({ subscriptionId, adminId, userId, planNam
   const { rows } = await query(
     `INSERT INTO subscriptions (user_id, plan_name, amount, start_date, end_date,
                                 status, manually_verified_by_admin, payment_reference)
-     VALUES ($1,$2,$3, NOW(), NOW() + INTERVAL '${config.subscription.durationDays} days',
-             'active', $4, $5)
+     VALUES ($1,$2,$3, NOW(), NOW() + ($4 || ' days')::INTERVAL,
+             'active', $5, $6)
      RETURNING *`,
-    [userId, plan.name, plan.amount, adminId, paymentReference || null]
+    [userId, plan.name, plan.amount, String(durationDays), adminId, paymentReference || null]
   );
   await audit({
     actorType: 'admin', actorId: adminId, action: 'subscription.create+activate',
-    entityType: 'subscription', entityId: rows[0].id, metadata: { plan_name: plan.name },
+    entityType: 'subscription', entityId: rows[0].id,
+    metadata: { plan_name: plan.name, days: durationDays },
   });
   return rows[0];
 }

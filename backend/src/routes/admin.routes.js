@@ -64,9 +64,10 @@ router.patch('/contact-requests/:id', asyncH(async (req, res) => {
 router.get('/users', asyncH(async (_req, res) => {
   const { rows } = await query(
     `SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at,
-            s.plan_name, s.status AS sub_status, s.end_date
+            s.plan_name, s.status AS sub_status, s.end_date, s.id AS sub_id,
+            GREATEST(0, EXTRACT(DAY FROM (s.end_date - NOW()))::int) AS days_left
        FROM users u
-       LEFT JOIN LATERAL (SELECT plan_name, status, end_date FROM subscriptions
+       LEFT JOIN LATERAL (SELECT id, plan_name, status, end_date FROM subscriptions
                           WHERE user_id=u.id ORDER BY end_date DESC LIMIT 1) s ON TRUE
        ORDER BY u.created_at DESC`
   );
@@ -91,6 +92,28 @@ router.post('/users/create', validate(createUserSchema), asyncH(async (req, res)
   );
   await audit({ actorType: 'admin', actorId: req.admin.id, action: 'user.create', entityType: 'user', entityId: rows[0].id });
   res.status(201).json({ user: rows[0] });
+}));
+
+const editUserSchema = z.object({
+  full_name: z.string().min(2).max(120).optional(),
+  email:     z.string().email().max(160).optional(),
+  phone:     z.string().max(24).optional().nullable(),
+});
+router.patch('/users/:id', validate(editUserSchema), asyncH(async (req, res) => {
+  const allowed = ['full_name', 'email', 'phone'];
+  const updates = []; const values = []; let i = 1;
+  for (const k of allowed) {
+    if (k in req.body) { updates.push(`${k}=$${i++}`); values.push(req.body[k]); }
+  }
+  if (!updates.length) throw Errors.badRequest('No fields to update');
+  values.push(req.params.id);
+  const { rows } = await query(
+    `UPDATE users SET ${updates.join(', ')} WHERE id=$${i} RETURNING id, full_name, email, phone, status`,
+    values
+  );
+  if (!rows[0]) throw Errors.notFound('User');
+  await audit({ actorType: 'admin', actorId: req.admin.id, action: 'user.edit', entityType: 'user', entityId: rows[0].id });
+  res.json({ user: rows[0] });
 }));
 
 router.post('/users/:id/status', asyncH(async (req, res) => {
@@ -182,14 +205,18 @@ const renewSchema = z.object({
   plan: z.enum(['basic', 'premium']),
   subscription_id: z.string().uuid().optional(),
   payment_reference: z.string().max(200).optional(),
+  days: z.number().int().min(1).max(3650).optional(),
 });
 router.post('/subscriptions/renew', validate(renewSchema), asyncH(async (req, res) => {
-  const { user_id, plan, subscription_id, payment_reference } = req.body;
-  const sub = await activateOrRenew({ subscriptionId: subscription_id, adminId: req.admin.id, userId: user_id, planName: plan, paymentReference: payment_reference });
+  const { user_id, plan, subscription_id, payment_reference, days } = req.body;
+  const sub = await activateOrRenew({ subscriptionId: subscription_id, adminId: req.admin.id, userId: user_id, planName: plan, paymentReference: payment_reference, days });
+  const daysLabel = days || 365;
   await query(
     `INSERT INTO notifications (user_id, title, message, type)
-     VALUES ($1, 'Subscription activated', 'Your ' || $2 || ' plan is now active for 30 days.', 'billing')`,
-    [user_id, plan]
+     VALUES ($1, 'Subscription activated',
+             'Your ' || $2 || ' plan is now active for ' || $3 || ' days.',
+             'billing')`,
+    [user_id, plan, daysLabel]
   );
   res.json({ subscription: sub });
 }));
