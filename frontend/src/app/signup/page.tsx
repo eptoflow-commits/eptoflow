@@ -131,7 +131,7 @@ export default function SignupPage() {
       }}>
         {/* The actual logo — full width, no restriction */}
         <img
-          src="/logo.svg"
+          src="/logo.jpeg"
           alt="Eptoflow"
           style={{
             display:'block',

@@ -25,7 +25,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-brand-50 via-white to-brand-100">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
-          <img src="/logo.svg" alt="Eptoflow" className="h-20 w-auto" />
+          <img src="/logo.jpeg" alt="Eptoflow" style={{ width: '100%', maxWidth: 280, height: 'auto' }} />
         </div>
         <form onSubmit={submit} className="bg-white rounded-2xl border border-gray-100 shadow-lg p-6 space-y-4">
           <div className="text-center mb-2">

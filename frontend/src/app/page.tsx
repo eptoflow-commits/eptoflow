@@ -5,7 +5,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-100">
       {/* Hero */}
       <div className="max-w-4xl mx-auto px-6 pt-20 pb-12 text-center">
-        <img src="/logo.svg" alt="Eptoflow" className="h-16 w-auto mx-auto mb-8" />
+        <img src="/logo.jpeg" alt="Eptoflow" style={{ width:'100%', maxWidth:340, height:'auto', margin:'0 auto 2rem', display:'block' }} />
         <h1 className="text-4xl md:text-5xl font-bold text-brand-900 mb-4 leading-tight">
           Smart Plant Care,<br />Wherever You Are
         </h1>

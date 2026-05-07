@@ -25,7 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-50">
         <div className="flex flex-col items-center gap-3">
-          <img src="/logo.svg" alt="Eptoflow" className="h-12 w-auto animate-pulse" />
+          <img src="/logo.jpeg" alt="Eptoflow" className="h-12 w-auto animate-pulse" />
           <div className="text-sm text-gray-400">Loading…</div>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/dashboard">
-            <img src="/logo.svg" alt="Eptoflow" className="h-8 w-auto" />
+            <img src="/logo.jpeg" alt="Eptoflow" className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400 hidden sm:block">{user.email}</span>
