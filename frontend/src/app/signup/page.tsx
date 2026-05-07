@@ -11,9 +11,10 @@ const PLANS = [
     period: '/year',
     icon: '🪴',
     color: '#059669',
-    glow: 'rgba(5,150,105,0.25)',
-    bg: '#ecfdf5',
-    border: '#6ee7b7',
+    dark: '#047857',
+    glow: 'rgba(5,150,105,0.4)',
+    glassBg: 'rgba(236,253,245,0.7)',
+    border: 'rgba(52,211,153,0.5)',
     features: [
       'Daily Water Plants control',
       'Motor or Light control',
@@ -28,9 +29,10 @@ const PLANS = [
     period: '/year',
     icon: '🌟',
     color: '#7c3aed',
-    glow: 'rgba(124,58,237,0.25)',
-    bg: '#f5f3ff',
-    border: '#c4b5fd',
+    dark: '#6d28d9',
+    glow: 'rgba(124,58,237,0.45)',
+    glassBg: 'rgba(245,243,255,0.75)',
+    border: 'rgba(167,139,250,0.6)',
     badge: 'Most Popular',
     features: [
       'All 3 plant zones',
@@ -43,16 +45,17 @@ const PLANS = [
   {
     id: 'custom',
     name: 'Custom',
-    price: 'Contact us',
+    price: 'Talk to us',
     period: '',
     icon: '⚙️',
-    color: '#d97706',
-    glow: 'rgba(217,119,6,0.25)',
-    bg: '#fffbeb',
-    border: '#fcd34d',
+    color: '#b45309',
+    dark: '#92400e',
+    glow: 'rgba(180,83,9,0.35)',
+    glassBg: 'rgba(255,251,235,0.7)',
+    border: 'rgba(251,191,36,0.5)',
     features: [
-      'Tailored to your needs',
-      'Multiple devices',
+      'Tailored to your setup',
+      'Multiple devices & zones',
       'Priority support',
       'Custom integrations',
     ],
@@ -61,10 +64,10 @@ const PLANS = [
 
 export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', message: '' });
+  const [form, setForm]   = useState({ full_name: '', email: '', phone: '', message: '' });
   const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState(false);
-  const [err, setErr] = useState('');
+  const [done, setDone]   = useState(false);
+  const [err, setErr]     = useState('');
 
   const plan = PLANS.find(p => p.id === selectedPlan);
 
@@ -77,8 +80,7 @@ export default function SignupPage() {
     setSaving(true); setErr('');
     try {
       await api('/api/contact', {
-        method: 'POST',
-        auth: 'none',
+        method: 'POST', auth: 'none',
         body: JSON.stringify({
           full_name: form.full_name.trim(),
           email: form.email.trim(),
@@ -88,36 +90,40 @@ export default function SignupPage() {
         }),
       });
       setDone(true);
-    } catch (e: any) {
-      setErr(e.message || 'Something went wrong. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { setErr(e.message || 'Something went wrong. Please try again.'); }
+    finally { setSaving(false); }
   };
 
   if (done) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg,#ecfdf5 0%,#fff 60%,#f5f3ff 100%)',
-        padding: '24px',
+        background: 'linear-gradient(160deg,#0a1628 0%,#0f2d1f 50%,#1a1040 100%)',
+        padding: 24,
       }}>
-        <div style={{ textAlign: 'center', maxWidth: 360 }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#1f2937', marginBottom: 8 }}>
+        <style>{`
+          @keyframes floatUp { 0%{opacity:0;transform:translateY(30px)} 100%{opacity:1;transform:translateY(0)} }
+          @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+        `}</style>
+        <div style={{ textAlign: 'center', maxWidth: 380, animation: 'floatUp 0.6s ease' }}>
+          <div style={{ fontSize: 72, marginBottom: 20, animation: 'pulse 2s ease infinite' }}>🎉</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 10, letterSpacing: '-0.03em' }}>
             We'll be in touch!
           </div>
-          <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 24, lineHeight: 1.6 }}>
-            Thanks <strong>{form.full_name}</strong>! We've received your request for the{' '}
-            <strong style={{ color: plan?.color }}>{plan?.name} plan</strong>.
-            Our team will contact you at <strong>{form.phone}</strong> or <strong>{form.email}</strong> shortly.
+          <div style={{
+            fontSize: 15, color: 'rgba(255,255,255,0.65)', marginBottom: 28, lineHeight: 1.7,
+          }}>
+            Thanks <strong style={{ color: '#fff' }}>{form.full_name}</strong>! Your request for the{' '}
+            <strong style={{ color: plan?.color }}>{plan?.name} plan</strong> is received.
+            We'll reach you at <strong style={{ color: '#fff' }}>{form.phone}</strong> soon.
           </div>
           <Link href="/login" style={{
-            display: 'inline-block', padding: '12px 28px', borderRadius: 12,
-            background: 'linear-gradient(135deg,#059669,#047857)',
-            color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-            boxShadow: '0 4px 14px rgba(5,150,105,0.3)',
-          }}>Back to Sign In</Link>
+            display: 'inline-block', padding: '14px 36px', borderRadius: 50,
+            background: `linear-gradient(135deg,${plan?.color},${plan?.dark})`,
+            color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none',
+            boxShadow: `0 8px 32px ${plan?.glow}`,
+            letterSpacing: '-0.01em',
+          }}>Back to Sign In →</Link>
         </div>
       </div>
     );
@@ -126,71 +132,122 @@ export default function SignupPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg,#ecfdf5 0%,#fff 50%,#eff6ff 100%)',
-      padding: '24px 16px 48px',
+      background: 'linear-gradient(160deg,#0a1628 0%,#0f2d1f 50%,#1a1040 100%)',
+      padding: '32px 16px 56px',
     }}>
-      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+      <style>{`
+        @keyframes floatUp { 0%{opacity:0;transform:translateY(24px)} 100%{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer {
+          0%   { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+        .plan-card { transition: all 0.25s cubic-bezier(.34,1.2,.64,1); }
+        .plan-card:hover { transform: translateY(-2px); }
+        .submit-btn {
+          background-size: 200% auto;
+          transition: all 0.3s ease;
+          background-image: linear-gradient(135deg, var(--c1) 0%, var(--c2) 51%, var(--c1) 100%);
+        }
+        .submit-btn:hover:not(:disabled) { background-position: right center; transform: translateY(-1px); }
+        .submit-btn:active:not(:disabled) { transform: translateY(0); }
+      `}</style>
 
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src="/logo.svg" alt="Eptoflow" style={{ height: 52, margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#1f2937', letterSpacing: '-0.02em' }}>
-            Get Started with Eptoflow
-          </div>
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 6 }}>
-            Choose a plan and we'll set you up
-          </div>
+      <div style={{ maxWidth: 460, margin: '0 auto' }}>
+
+        {/* ── Logo ── */}
+        <div style={{ textAlign: 'center', marginBottom: 32, animation: 'floatUp 0.5s ease' }}>
+          <img
+            src="/logo.svg"
+            alt="Eptoflow"
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              height: 'auto',
+              filter: 'drop-shadow(0 4px 24px rgba(6,182,212,0.35)) brightness(1.08)',
+            }}
+          />
+          <div style={{
+            marginTop: 8, fontSize: 13, fontWeight: 600,
+            color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>Choose your plan to get started</div>
         </div>
 
-        {/* Plan cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          {PLANS.map(p => {
+        {/* ── Plan cards ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          {PLANS.map((p, i) => {
             const active = selectedPlan === p.id;
             return (
-              <button key={p.id} type="button" onClick={() => setSelectedPlan(p.id)} style={{
-                textAlign: 'left', padding: '14px 16px',
-                borderRadius: 16,
-                border: `2px solid ${active ? p.color : '#e5e7eb'}`,
-                background: active ? p.bg : '#fff',
-                boxShadow: active ? `0 4px 20px ${p.glow}` : '0 1px 4px rgba(0,0,0,0.05)',
-                cursor: 'pointer', transition: 'all 0.2s', position: 'relative',
-              }}>
+              <button
+                key={p.id}
+                className="plan-card"
+                type="button"
+                onClick={() => setSelectedPlan(p.id)}
+                style={{
+                  textAlign: 'left', padding: '16px 18px',
+                  borderRadius: 20,
+                  border: `1.5px solid ${active ? p.color : 'rgba(255,255,255,0.08)'}`,
+                  background: active
+                    ? p.glassBg
+                    : 'rgba(255,255,255,0.04)',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: active
+                    ? `0 8px 32px ${p.glow}, inset 0 1px 0 rgba(255,255,255,0.15)`
+                    : '0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)',
+                  cursor: 'pointer',
+                  position: 'relative', overflow: 'hidden',
+                  animation: `floatUp ${0.4 + i * 0.1}s ease`,
+                }}
+              >
                 {p.badge && (
                   <span style={{
-                    position: 'absolute', top: -10, right: 14,
-                    background: p.color, color: '#fff',
-                    fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20,
-                    letterSpacing: '0.04em', textTransform: 'uppercase',
+                    position: 'absolute', top: 0, right: 18,
+                    background: `linear-gradient(135deg,${p.color},${p.dark})`,
+                    color: '#fff', fontSize: 9, fontWeight: 900,
+                    padding: '4px 12px', borderRadius: '0 0 10px 10px',
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    boxShadow: `0 4px 12px ${p.glow}`,
                   }}>{p.badge}</span>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {/* Radio */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Radio ring */}
                     <div style={{
-                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${active ? p.color : '#d1d5db'}`,
-                      background: active ? p.color : '#fff',
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                      border: `2.5px solid ${active ? p.color : 'rgba(255,255,255,0.2)'}`,
+                      background: active ? p.color : 'transparent',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s',
+                      boxShadow: active ? `0 0 10px ${p.glow}` : 'none',
+                      transition: 'all 0.2s',
                     }}>
                       {active && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }}/>}
                     </div>
-                    <div style={{ fontSize: 20 }}>{p.icon}</div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: active ? p.color : '#1f2937' }}>{p.name}</div>
-                    </div>
+                    <span style={{ fontSize: 22 }}>{p.icon}</span>
+                    <span style={{
+                      fontWeight: 900, fontSize: 17,
+                      color: active ? p.color : 'rgba(255,255,255,0.9)',
+                      letterSpacing: '-0.02em',
+                    }}>{p.name}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: active ? p.color : '#1f2937' }}>{p.price}</span>
-                    <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>{p.period}</span>
+                    <span style={{
+                      fontSize: 22, fontWeight: 900,
+                      color: active ? p.color : 'rgba(255,255,255,0.9)',
+                      letterSpacing: '-0.03em',
+                    }}>{p.price}</span>
+                    {p.period && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>{p.period}</span>}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', paddingLeft: 30 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 14px', paddingLeft: 34 }}>
                   {p.features.map(f => (
-                    <span key={f} style={{ fontSize: 12, color: active ? p.color : '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ color: active ? p.color : '#9ca3af' }}>✓</span> {f}
+                    <span key={f} style={{
+                      fontSize: 12,
+                      color: active ? p.color : 'rgba(255,255,255,0.45)',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}>
+                      <span style={{ color: active ? p.color : 'rgba(255,255,255,0.2)', fontWeight: 700 }}>✓</span>
+                      {f}
                     </span>
                   ))}
                 </div>
@@ -199,36 +256,38 @@ export default function SignupPage() {
           })}
         </div>
 
-        {/* Contact form — slides in after plan selected */}
+        {/* ── Contact form ── */}
         {selectedPlan && (
           <form onSubmit={submit} style={{
-            background: '#fff', borderRadius: 20, padding: 20,
+            borderRadius: 24,
             border: `1.5px solid ${plan?.border}`,
-            boxShadow: `0 8px 32px ${plan?.glow}`,
-            animation: 'slideUp 0.25s ease',
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: `0 16px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)`,
+            padding: 22,
+            animation: 'floatUp 0.3s ease',
           }}>
-            <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
-
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#1f2937', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 16, letterSpacing: '-0.02em' }}>
               {plan?.icon} Your Details — {plan?.name} Plan
             </div>
 
             {err && (
               <div style={{
-                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
-                padding: '10px 14px', fontSize: 12, color: '#dc2626', marginBottom: 12,
+                background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)',
+                borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#fca5a5', marginBottom: 12,
               }}>⚠️ {err}</div>
             )}
 
             {[
-              { key: 'full_name', label: 'Full Name', placeholder: 'Your name', type: 'text' },
-              { key: 'email',     label: 'Email',     placeholder: 'you@example.com', type: 'email' },
-              { key: 'phone',     label: 'Phone',     placeholder: '+91 98765 43210', type: 'tel' },
+              { key: 'full_name', label: 'Full Name',  placeholder: 'Your name',        type: 'text'  },
+              { key: 'email',     label: 'Email',       placeholder: 'you@example.com',  type: 'email' },
+              { key: 'phone',     label: 'Phone',       placeholder: '+91 98765 43210',  type: 'tel'   },
             ].map(field => (
               <div key={field.key} style={{ marginBottom: 12 }}>
                 <label style={{
-                  display: 'block', fontSize: 11, fontWeight: 700,
-                  color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5,
+                  display: 'block', fontSize: 10, fontWeight: 700,
+                  color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', marginBottom: 6,
                 }}>{field.label} *</label>
                 <input
                   type={field.type}
@@ -237,20 +296,23 @@ export default function SignupPage() {
                   onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                   required
                   style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    border: `1.5px solid ${plan?.border || '#e5e7eb'}`,
-                    fontSize: 14, color: '#1f2937', background: '#f9fafb',
-                    outline: 'none', boxSizing: 'border-box',
+                    width: '100%', padding: '12px 14px', borderRadius: 12,
+                    border: `1.5px solid rgba(255,255,255,0.1)`,
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#fff', fontSize: 14, outline: 'none',
+                    boxSizing: 'border-box',
+                    caretColor: plan?.color,
                   }}
                 />
               </div>
             ))}
 
             {selectedPlan === 'custom' && (
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 14 }}>
                 <label style={{
-                  display: 'block', fontSize: 11, fontWeight: 700,
-                  color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5,
+                  display: 'block', fontSize: 10, fontWeight: 700,
+                  color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', marginBottom: 6,
                 }}>Tell us about your needs</label>
                 <textarea
                   placeholder="Describe your setup, number of zones, special requirements…"
@@ -258,35 +320,48 @@ export default function SignupPage() {
                   onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
                   rows={3}
                   style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    border: `1.5px solid ${plan?.border || '#e5e7eb'}`,
-                    fontSize: 14, color: '#1f2937', background: '#f9fafb',
-                    outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                    width: '100%', padding: '12px 14px', borderRadius: 12,
+                    border: '1.5px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#fff', fontSize: 14, outline: 'none',
+                    resize: 'vertical', boxSizing: 'border-box',
                   }}
                 />
               </div>
             )}
 
-            <button type="submit" disabled={saving} style={{
-              width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
-              background: saving ? '#e5e7eb' : `linear-gradient(135deg,${plan?.color},${plan?.color}cc)`,
-              color: '#fff', fontSize: 14, fontWeight: 800,
-              cursor: saving ? 'default' : 'pointer',
-              boxShadow: saving ? 'none' : `0 4px 18px ${plan?.glow}`,
-              transition: 'all 0.2s', marginBottom: 10,
-            }}>
-              {saving ? 'Sending…' : `📬 Request ${plan?.name} Plan Access`}
+            {/* ── THE button ── */}
+            <button
+              type="submit"
+              disabled={saving}
+              className="submit-btn"
+              style={{
+                '--c1': plan?.color,
+                '--c2': plan?.dark,
+                width: '100%', padding: '16px 0', borderRadius: 50, border: 'none',
+                color: '#fff', fontSize: 15, fontWeight: 900,
+                cursor: saving ? 'default' : 'pointer',
+                letterSpacing: '-0.01em',
+                opacity: saving ? 0.7 : 1,
+                boxShadow: saving ? 'none' : `0 6px 28px ${plan?.glow}, 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)`,
+                marginBottom: 12,
+              } as any}
+            >
+              {saving
+                ? '⏳ Sending your request…'
+                : `📬 Request ${plan?.name} Plan Access →`}
             </button>
 
-            <p style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 1.5 }}>
               We'll contact you within 24 hours to complete your setup.
             </p>
           </form>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <Link href="/login" style={{ fontSize: 13, color: '#6b7280', textDecoration: 'none' }}>
-            Already have an account? <span style={{ color: '#059669', fontWeight: 700 }}>Sign in →</span>
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Link href="/login" style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>
+            Already have an account?{' '}
+            <span style={{ color: '#34d399', fontWeight: 700 }}>Sign in →</span>
           </Link>
         </div>
       </div>
