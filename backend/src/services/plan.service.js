@@ -8,6 +8,16 @@ export const PLAN_FEATURES = {
     hasRelay1: true,
     hasMoisture: false,
     hasVoice: false,
+    hasScheduling: false,
+    moistureAutomation: false,
+    allowedOutputs: new Set(['valve1', 'relay1']),
+  },
+  standard: {
+    maxValves: 1,
+    hasRelay1: true,
+    hasMoisture: false,
+    hasVoice: false,
+    hasScheduling: true,
     moistureAutomation: false,
     allowedOutputs: new Set(['valve1', 'relay1']),
   },
@@ -16,6 +26,7 @@ export const PLAN_FEATURES = {
     hasRelay1: true,
     hasMoisture: true,
     hasVoice: true,
+    hasScheduling: true,
     moistureAutomation: true,
     allowedOutputs: new Set(['valve1', 'valve2', 'valve3', 'relay1']),
   },
@@ -30,6 +41,10 @@ export function planAllows(planName, output) {
 
 export function planHasVoice(planName) {
   return !!PLAN_FEATURES[planName]?.hasVoice;
+}
+
+export function planHasScheduling(planName) {
+  return !!PLAN_FEATURES[planName]?.hasScheduling;
 }
 
 export function planHasMoisture(planName) {

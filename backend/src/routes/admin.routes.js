@@ -144,7 +144,7 @@ router.get('/devices', asyncH(async (_req, res) => {
 
 const provisionSchema = z.object({
   user_id: z.string().uuid(),
-  plan_bound: z.enum(['basic', 'premium']),
+  plan_bound: z.enum(['basic', 'standard', 'premium']),
   device_name: z.string().min(1).max(80).optional(),
 });
 router.post('/devices/provision', validate(provisionSchema), asyncH(async (req, res) => {
@@ -202,7 +202,7 @@ router.get('/subscriptions', asyncH(async (_req, res) => {
 
 const renewSchema = z.object({
   user_id: z.string().uuid(),
-  plan: z.enum(['basic', 'premium']),
+  plan: z.enum(['basic', 'standard', 'premium']),
   subscription_id: z.string().uuid().optional(),
   payment_reference: z.string().max(200).optional(),
   days: z.number().int().min(1).max(3650).optional(),

@@ -4,7 +4,7 @@ import { query } from '../db/pool.js';
 import { authUser, loadSubscription } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncH, Errors } from '../utils/http.js';
-import { planAllows } from '../services/plan.service.js';
+import { planAllows, planHasScheduling } from '../services/plan.service.js';
 
 const router = Router();
 router.use(authUser, loadSubscription({ requireActive: true }));
@@ -31,6 +31,10 @@ router.get('/', asyncH(async (req, res) => {
 }));
 
 router.post('/', validate(scheduleSchema), asyncH(async (req, res) => {
+  // Block basic plan — scheduling requires Standard or Premium
+  if (!planHasScheduling(req.subscription?.plan_name)) {
+    throw Errors.planRestricted('Scheduled watering requires Standard (₹349) or Premium plan. Upgrade to unlock this feature.');
+  }
   const { device_id, zone_or_output } = req.body;
   // Confirm device ownership
   const { rows: dev } = await query(

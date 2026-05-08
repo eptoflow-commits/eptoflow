@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { api } from '@/lib/api';
-import type { Device, Schedule } from '@/lib/types';
+import type { Device, Schedule, Subscription } from '@/lib/types';
 
 const DAYS = [
   { v: 1, l: 'M', full: 'Mon' },
@@ -33,6 +33,7 @@ const VALVE_LABELS: Record<string, string> = {
 export default function SchedulesPage() {
   const [devices, setDevices]   = useState<Device[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [sub, setSub]           = useState<Subscription | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving]     = useState(false);
   const [err, setErr]           = useState<string | null>(null);
@@ -47,12 +48,14 @@ export default function SchedulesPage() {
 
   const load = async () => {
     try {
-      const [d, s] = await Promise.all([
+      const [d, s, subRes] = await Promise.all([
         api<{ devices: Device[] }>('/api/devices'),
         api<{ schedules: Schedule[] }>('/api/schedules'),
+        api<{ subscription: Subscription | null }>('/api/subscriptions/me'),
       ]);
       setDevices(d.devices);
       setSchedules(s.schedules);
+      setSub(subRes.subscription);
       if (!form.device_id && d.devices[0]) {
         setForm(f => ({ ...f, device_id: d.devices[0].id }));
       }
@@ -116,12 +119,78 @@ export default function SchedulesPage() {
     return days.map(d => DAYS[d-1]?.full).join(', ');
   };
 
+  const canSchedule = sub?.plan_name === 'standard' || sub?.plan_name === 'premium';
+
   return (
     <AppShell>
       <style>{`
         @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+        @keyframes lockBounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} 70%{transform:translateY(-3px)} }
       `}</style>
+
+      {/* ── Locked screen for Basic plan ── */}
+      {sub !== null && !canSchedule && (
+        <div style={{ animation:'slideUp 0.4s ease' }}>
+          {/* Blurred preview of schedule list behind a lock overlay */}
+          <div style={{ position:'relative', borderRadius:20, overflow:'hidden' }}>
+            {/* Dimmed fake card (decorative) */}
+            <div style={{ filter:'blur(3px)', opacity:0.35, pointerEvents:'none', userSelect:'none' }}>
+              {[1,2].map(i => (
+                <div key={i} style={{
+                  background:'#fff', borderRadius:16, padding:'14px 16px', marginBottom:12,
+                  border:'1.5px solid #6ee7b7',
+                }}>
+                  <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                    <div style={{ width:40, height:40, borderRadius:12, background:'#ecfdf5' }}/>
+                    <div>
+                      <div style={{ width:80, height:18, borderRadius:6, background:'#d1fae5', marginBottom:6 }}/>
+                      <div style={{ width:120, height:12, borderRadius:6, background:'#e5e7eb' }}/>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Lock overlay */}
+            <div style={{
+              position:'absolute', inset:0,
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+              background:'rgba(248,250,252,0.85)',
+              backdropFilter:'blur(4px)',
+              borderRadius:20,
+              padding:32,
+              textAlign:'center',
+            }}>
+              <div style={{ fontSize:52, animation:'lockBounce 2s ease infinite', marginBottom:12 }}>🔒</div>
+              <div style={{ fontSize:18, fontWeight:900, color:'#0f172a', letterSpacing:'-0.03em', marginBottom:6 }}>
+                Scheduling is locked
+              </div>
+              <div style={{ fontSize:13, color:'#64748b', lineHeight:1.6, marginBottom:20, maxWidth:260 }}>
+                Your <strong>Basic plan</strong> doesn't include scheduled watering.
+                Upgrade to <strong style={{ color:'#0284c7' }}>Standard (₹349/yr)</strong> or{' '}
+                <strong style={{ color:'#7c3aed' }}>Premium (₹499/yr)</strong> to automate your garden.
+              </div>
+              <a href="mailto:eptosicare@gmail.com?subject=Upgrade Request&body=Hi, I would like to upgrade my Eptoflow plan."
+                style={{
+                  display:'inline-block', padding:'13px 28px', borderRadius:50, border:'none',
+                  background:'linear-gradient(135deg,#0284c7,#0369a1)',
+                  color:'#fff', fontSize:14, fontWeight:800, textDecoration:'none',
+                  boxShadow:'0 4px 0 #0369a1, 0 8px 24px rgba(2,132,199,0.4)',
+                  letterSpacing:'-0.01em',
+                }}>
+                📬 Request Upgrade →
+              </a>
+              <p style={{ fontSize:11, color:'#94a3b8', marginTop:12 }}>
+                We'll activate your plan within 24 hours
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Normal content (only shown when plan allows) ── */}
+      {canSchedule && <>
 
       {/* ── Header ── */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
@@ -354,6 +423,8 @@ export default function SchedulesPage() {
           ))}
         </div>
       )}
+
+      </> /* end canSchedule */}
     </AppShell>
   );
 }
