@@ -38,8 +38,8 @@
 #define EPF_API_BASE_URL      "https://eptoflow-api.onrender.com"
 
 // ---------- Device identity ----------
-#define EPF_DEVICE_UID        "EPT-720FD2-FDADDE"
-#define EPF_DEVICE_SECRET     "4ac90f360a6d9784e1e1b2db274166734b2ec17fdc13a6a5"
+#define EPF_DEVICE_UID        "EPT-FA92A7-A25E2C"
+#define EPF_DEVICE_SECRET     "5a4bc77f5a598a17c14544b2d54c7b4ebc2c3d082f4dac38"
 #define EPF_FIRMWARE_VERSION  "1.1.0"
 
 // ---------- GPIO pins ----------

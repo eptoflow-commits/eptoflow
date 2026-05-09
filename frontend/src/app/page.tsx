@@ -155,7 +155,7 @@ export default function LandingPage() {
                     {p.price}
                   </div>
                   {p.price !== 'Talk to us' && (
-                    <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>/year</div>
+                    <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>/month</div>
                   )}
                 </div>
               </div>
