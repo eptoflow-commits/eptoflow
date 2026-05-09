@@ -14,7 +14,7 @@ const PLANS = [
   {
     name: 'Standard',
     price: '₹349',
-    emoji: '📅',
+    emoji: '🕐',
     color: '#0284c7',
     glow: 'rgba(2,132,199,0.35)',
     dark: '#0369a1',
