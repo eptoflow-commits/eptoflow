@@ -1,4 +1,4 @@
-export type PlanName = 'basic' | 'premium';
+export type PlanName = 'basic' | 'standard' | 'premium';
 
 export interface User {
   id: string; full_name: string; email: string; phone?: string | null;
