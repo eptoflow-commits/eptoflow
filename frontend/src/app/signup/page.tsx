@@ -21,7 +21,7 @@ const PLANS = [
     name: 'Standard',
     price: '₹349',
     period: '/month',
-    emoji: '📅',
+    emoji: '🕐',
     color: '#0284c7',
     dark: '#0369a1',
     glow: 'rgba(2,132,199,0.5)',
