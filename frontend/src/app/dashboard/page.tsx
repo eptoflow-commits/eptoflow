@@ -11,7 +11,27 @@ type Weather = {
   temp: number; feelsLike: number; humidity: number;
   windKph: number; rainMm: number; uvIndex: number;
   code: number; city: string; isDay: boolean;
+  aqi: number | null; pm25: number | null; pm10: number | null;
 };
+
+function aqiLabel(aqi: number): { label: string; color: string; bg: string; emoji: string } {
+  if (aqi <= 50)  return { label:'Good',                    color:'#059669', bg:'#dcfce7', emoji:'😊' };
+  if (aqi <= 100) return { label:'Moderate',                color:'#d97706', bg:'#fef3c7', emoji:'😐' };
+  if (aqi <= 150) return { label:'Unhealthy for Sensitive', color:'#ea580c', bg:'#ffedd5', emoji:'😷' };
+  if (aqi <= 200) return { label:'Unhealthy',               color:'#dc2626', bg:'#fef2f2', emoji:'🤧' };
+  if (aqi <= 300) return { label:'Very Unhealthy',          color:'#9333ea', bg:'#f3e8ff', emoji:'🚨' };
+  return                 { label:'Hazardous',               color:'#7f1d1d', bg:'#fef2f2', emoji:'☠️' };
+}
+
+// PM2.5 µg/m³ → US AQI approximation
+function pm25ToAqi(pm: number): number {
+  if (pm <= 12)   return Math.round((50/12) * pm);
+  if (pm <= 35.4) return Math.round(50 + (50/23.4) * (pm - 12));
+  if (pm <= 55.4) return Math.round(100 + (50/19.9) * (pm - 35.4));
+  if (pm <= 150.4)return Math.round(150 + (50/94.9) * (pm - 55.4));
+  if (pm <= 250.4)return Math.round(200 + (100/99.9) * (pm - 150.4));
+  return Math.round(300 + (200/149.9) * (pm - 250.4));
+}
 
 // wttr.in weather codes
 const WMO: Record<number, { label: string; emoji: string }> = {
@@ -72,14 +92,31 @@ async function fetchWeather(): Promise<Weather | null> {
       (sum: number, h: any) => sum + parseFloat(h.precipMM ?? '0'), 0
     ) ?? '0');
 
-    // wttr.in doesn't give UV directly — estimate from cloud cover
     const cloudCover = parseInt(c.cloudcover ?? '0');
     const uvEstimate = Math.max(0, Math.round((10 - cloudCover / 10) * 0.9));
+    const isDay = new Date().getHours() >= 6 && new Date().getHours() < 19;
 
-    const isDay = (() => {
-      const h = new Date().getHours();
-      return h >= 6 && h < 19;
-    })();
+    // Get lat/lon from wttr.in for AQI fetch
+    const lat = parseFloat(area?.latitude ?? '0');
+    const lon = parseFloat(area?.longitude ?? '0');
+
+    // Fetch AQI from Open-Meteo Air Quality (free, no key)
+    let aqi: number | null = null;
+    let pm25: number | null = null;
+    let pm10: number | null = null;
+    if (lat !== 0 || lon !== 0) {
+      try {
+        const aqr = await fetch(
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5,us_aqi&timezone=auto`
+        );
+        if (aqr.ok) {
+          const aqj = await aqr.json();
+          pm25 = aqj.current?.pm2_5 ?? null;
+          pm10 = aqj.current?.pm10 ?? null;
+          aqi  = aqj.current?.us_aqi ?? (pm25 !== null ? pm25ToAqi(pm25) : null);
+        }
+      } catch {}
+    }
 
     return {
       temp: parseInt(c.temp_C ?? '25'),
@@ -88,9 +125,7 @@ async function fetchWeather(): Promise<Weather | null> {
       windKph: parseInt(c.windspeedKmph ?? '0'),
       rainMm: isNaN(rainMm) ? 0 : Math.round(rainMm * 10) / 10,
       uvIndex: uvEstimate,
-      code,
-      city,
-      isDay,
+      code, city, isDay, aqi, pm25, pm10,
     };
   } catch { return null; }
 }
@@ -239,12 +274,52 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+            {/* AQI strip */}
+            {weather.aqi !== null && (() => {
+              const a = aqiLabel(weather.aqi);
+              return (
+                <div style={{
+                  margin:'0 12px 8px',
+                  borderRadius:12,
+                  background:'rgba(0,0,0,0.2)',
+                  padding:'9px 14px',
+                  display:'flex', alignItems:'center', justifyContent:'space-between', gap:10,
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:18 }}>{a.emoji}</span>
+                    <div>
+                      <div style={{ fontSize:11, color:'rgba(255,255,255,0.65)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em' }}>Air Quality</div>
+                      <div style={{ fontSize:13, color:'#fff', fontWeight:800 }}>{a.label}</div>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:14 }}>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ fontSize:18, fontWeight:900, color:'#fff', lineHeight:1 }}>{Math.round(weather.aqi)}</div>
+                      <div style={{ fontSize:10, color:'rgba(255,255,255,0.6)' }}>AQI</div>
+                    </div>
+                    {weather.pm25 !== null && (
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:18, fontWeight:900, color:'#fff', lineHeight:1 }}>{Math.round(weather.pm25)}</div>
+                        <div style={{ fontSize:10, color:'rgba(255,255,255,0.6)' }}>PM2.5</div>
+                      </div>
+                    )}
+                    {weather.pm10 !== null && (
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:18, fontWeight:900, color:'#fff', lineHeight:1 }}>{Math.round(weather.pm10)}</div>
+                        <div style={{ fontSize:10, color:'rgba(255,255,255,0.6)' }}>PM10</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Watering advice strip */}
             {(() => {
               const advice = wateringAdvice(weather);
               return (
                 <div style={{
-                  margin:'0 12px 12px',
+                  margin:`0 12px 12px`,
                   borderRadius:12,
                   background:'rgba(255,255,255,0.18)',
                   backdropFilter:'blur(4px)',
