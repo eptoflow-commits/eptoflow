@@ -9,7 +9,7 @@ const PLANS = [
     color: '#059669',
     glow: 'rgba(5,150,105,0.35)',
     dark: '#047857',
-    features: ['Daily Water Plants', 'Motor or Light', 'Remote access'],
+    features: ['Daily Water Plants', 'Motor or Light', 'Push notifications', 'Remote access'],
   },
   {
     name: 'Standard',
@@ -19,7 +19,7 @@ const PLANS = [
     glow: 'rgba(2,132,199,0.35)',
     dark: '#0369a1',
     badge: 'Best Value',
-    features: ['Daily Water Plants', 'Motor or Light', 'Scheduled watering', 'Remote access'],
+    features: ['Daily Water Plants', 'Motor or Light', 'Scheduled watering', 'Weekly reports', 'Remote access'],
   },
   {
     name: 'Premium',
@@ -29,7 +29,7 @@ const PLANS = [
     glow: 'rgba(124,58,237,0.35)',
     dark: '#6d28d9',
     badge: 'Most Popular',
-    features: ['All 3 plant zones', 'Motor or Light', 'Soil moisture sensor', 'Voice control', 'Smart automation'],
+    features: ['All 3 plant zones', 'Motor or Light', 'Soil moisture sensor', 'Voice control', 'Weather-based watering', 'Smart automation', 'Water usage insights'],
   },
   {
     name: 'Custom',
