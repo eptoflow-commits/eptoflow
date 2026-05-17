@@ -8,9 +8,11 @@ type ContactRequest = {
 };
 
 const PLAN_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  basic:   { label: 'Basic ₹249',   icon: '🪴', color: '#059669', bg: '#ecfdf5' },
-  premium: { label: 'Premium ₹499', icon: '🌟', color: '#7c3aed', bg: '#f5f3ff' },
-  custom:  { label: 'Custom',       icon: '⚙️', color: '#d97706', bg: '#fffbeb' },
+  basic:          { label: 'Basic ₹249',    icon: '🪴', color: '#059669', bg: '#ecfdf5' },
+  standard:       { label: 'Standard ₹349', icon: '🕐', color: '#0284c7', bg: '#e0f2fe' },
+  premium:        { label: 'Premium ₹499',  icon: '🌟', color: '#7c3aed', bg: '#f5f3ff' },
+  custom:         { label: 'Custom',        icon: '⚙️', color: '#d97706', bg: '#fffbeb' },
+  password_reset: { label: 'Password Reset',icon: '🔑', color: '#dc2626', bg: '#fef2f2' },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {

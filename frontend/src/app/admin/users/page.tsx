@@ -28,15 +28,18 @@ function DaysBar({ days }: { days: number | null }) {
 export default function AdminUsersPage() {
   const [users, setUsers]         = useState<User[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [editing, setEditing]     = useState<User | null>(null);
+  const [editing, setEditing]         = useState<User | null>(null);
   const [renewTarget, setRenewTarget] = useState<User | null>(null);
-  const [renewDays, setRenewDays] = useState(365);
-  const [renewPlan, setRenewPlan] = useState<'basic'|'premium'>('basic');
-  const [form, setForm]           = useState({ full_name: '', email: '', phone: '', password: '' });
-  const [editForm, setEditForm]   = useState({ full_name: '', email: '', phone: '' });
-  const [busy, setBusy]           = useState(false);
-  const [err, setErr]             = useState<string | null>(null);
-  const [msg, setMsg]             = useState<string | null>(null);
+  const [pwTarget, setPwTarget]       = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPw, setShowPw]           = useState(false);
+  const [renewDays, setRenewDays]     = useState(365);
+  const [renewPlan, setRenewPlan]     = useState<'basic'|'standard'|'premium'>('basic');
+  const [form, setForm]               = useState({ full_name: '', email: '', phone: '', password: '' });
+  const [editForm, setEditForm]       = useState({ full_name: '', email: '', phone: '' });
+  const [busy, setBusy]               = useState(false);
+  const [err, setErr]                 = useState<string | null>(null);
+  const [msg, setMsg]                 = useState<string | null>(null);
 
   const load = async () => {
     const { users } = await api<{ users: User[] }>('/api/admin/users', { auth: 'admin' });
@@ -78,6 +81,22 @@ export default function AdminUsersPage() {
       setMsg('✅ User updated');
       setEditing(null);
       load();
+    } catch (e: any) { setErr(e.message || 'Failed'); }
+    finally { setBusy(false); }
+  };
+
+  /* ── Set password ── */
+  const doSetPassword = async () => {
+    if (!pwTarget) return;
+    if (newPassword.length < 6) { setErr('Password must be at least 6 characters'); return; }
+    setBusy(true); setErr(null);
+    try {
+      await api(`/api/admin/users/${pwTarget.id}/set-password`, {
+        method: 'POST', auth: 'admin',
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+      setMsg(`✅ Password updated for ${pwTarget.full_name}`);
+      setPwTarget(null); setNewPassword('');
     } catch (e: any) { setErr(e.message || 'Failed'); }
     finally { setBusy(false); }
   };
@@ -204,6 +223,11 @@ export default function AdminUsersPage() {
                   background: '#f9fafb', color: '#374151',
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 }}>✏️ Edit</button>
+                <button onClick={() => { setPwTarget(u); setNewPassword(''); setShowPw(false); setErr(null); }} style={{
+                  padding: '6px 12px', borderRadius: 8, border: 'none',
+                  background: '#fef3c7', color: '#d97706',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                }}>🔑 Password</button>
                 <button onClick={() => { setRenewTarget(u); setRenewPlan((u.plan_name as any) || 'basic'); setErr(null); }} style={{
                   padding: '6px 12px', borderRadius: 8, border: 'none',
                   background: '#ecfdf5', color: '#059669',
@@ -223,6 +247,53 @@ export default function AdminUsersPage() {
           <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, padding: 40 }}>No users yet</div>
         )}
       </div>
+
+      {/* ── Set Password modal ── */}
+      {pwTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 100, padding: '0 16px 16px',
+        }} onClick={e => { if (e.target === e.currentTarget) setPwTarget(null); }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: 20, width: '100%', maxWidth: 480 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1f2937', marginBottom: 4 }}>🔑 Set New Password</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>{pwTarget.full_name} · {pwTarget.email}</div>
+            {err && <div style={{ background: '#fef2f2', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#dc2626', marginBottom: 10 }}>⚠️ {err}</div>}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>New Password</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  placeholder="Min 6 characters"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '10px 44px 10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#1f2937', background: '#f9fafb', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <button type="button" onClick={() => setShowPw(s => !s)} style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af',
+                }}>{showPw ? '🙈' : '👁'}</button>
+              </div>
+              {newPassword && (
+                <div style={{ marginTop: 6, fontSize: 11, color: newPassword.length >= 6 ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                  {newPassword.length >= 6 ? '✓ Strong enough' : `${6 - newPassword.length} more characters needed`}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={doSetPassword} disabled={busy || newPassword.length < 6} style={{
+                flex: 1, padding: '11px 0', borderRadius: 10, border: 'none',
+                background: busy || newPassword.length < 6 ? '#e5e7eb' : 'linear-gradient(135deg,#d97706,#b45309)',
+                color: '#fff', fontSize: 13, fontWeight: 700, cursor: busy || newPassword.length < 6 ? 'default' : 'pointer',
+              }}>{busy ? 'Updating…' : 'Set Password'}</button>
+              <button onClick={() => setPwTarget(null)} style={{
+                padding: '11px 16px', borderRadius: 10, border: '1.5px solid #e5e7eb',
+                background: '#f9fafb', color: '#6b7280', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Edit user modal ── */}
       {editing && (
@@ -277,14 +348,18 @@ export default function AdminUsersPage() {
             {/* Plan */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {(['basic', 'premium'] as const).map(p => (
-                  <button key={p} type="button" onClick={() => setRenewPlan(p)} style={{
-                    padding: '10px 8px', borderRadius: 10, border: `2px solid ${renewPlan === p ? (p === 'premium' ? '#7c3aed' : '#059669') : '#e5e7eb'}`,
-                    background: renewPlan === p ? (p === 'premium' ? '#f5f3ff' : '#ecfdf5') : '#f9fafb',
-                    color: renewPlan === p ? (p === 'premium' ? '#7c3aed' : '#059669') : '#6b7280',
-                    fontSize: 13, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize',
-                  }}>{p === 'premium' ? '🌟 Premium ₹499' : '🪴 Basic ₹249'}</button>
+              <div style={{ display: 'flex', flexDirection:'column', gap: 8 }}>
+                {([
+                  { id:'basic',    label:'🪴 Basic ₹249',    color:'#059669', bg:'#ecfdf5' },
+                  { id:'standard', label:'🕐 Standard ₹349', color:'#0284c7', bg:'#e0f2fe' },
+                  { id:'premium',  label:'🌟 Premium ₹499',  color:'#7c3aed', bg:'#f5f3ff' },
+                ] as const).map(p => (
+                  <button key={p.id} type="button" onClick={() => setRenewPlan(p.id)} style={{
+                    padding: '10px 14px', borderRadius: 10, border: `2px solid ${renewPlan === p.id ? p.color : '#e5e7eb'}`,
+                    background: renewPlan === p.id ? p.bg : '#f9fafb',
+                    color: renewPlan === p.id ? p.color : '#6b7280',
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign:'left',
+                  }}>{p.label}</button>
                 ))}
               </div>
             </div>

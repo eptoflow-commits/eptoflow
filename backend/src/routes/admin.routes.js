@@ -116,6 +116,19 @@ router.patch('/users/:id', validate(editUserSchema), asyncH(async (req, res) => 
   res.json({ user: rows[0] });
 }));
 
+/* ── Admin: set a new password for a user ── */
+router.post('/users/:id/set-password', asyncH(async (req, res) => {
+  const { new_password } = req.body || {};
+  if (!new_password || new_password.length < 6) throw Errors.badRequest('Password must be at least 6 characters');
+  const hash = await bcrypt.hash(new_password, 10);
+  const { rowCount } = await query(
+    `UPDATE users SET password_hash=$2 WHERE id=$1`, [req.params.id, hash]
+  );
+  if (!rowCount) throw Errors.notFound('User');
+  await audit({ actorType: 'admin', actorId: req.admin.id, action: 'user.set_password', entityType: 'user', entityId: req.params.id });
+  res.json({ ok: true });
+}));
+
 router.post('/users/:id/status', asyncH(async (req, res) => {
   const status = req.body?.status;
   if (!['active', 'suspended'].includes(status)) throw Errors.badRequest('status must be active|suspended');

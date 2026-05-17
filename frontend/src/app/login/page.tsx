@@ -232,6 +232,12 @@ export default function LoginPage() {
               />
             </div>
 
+            <div style={{ textAlign:'right', marginTop:-8, marginBottom:4 }}>
+              <a href="/forgot-password" style={{ fontSize:12, color:'#059669', textDecoration:'none', fontWeight:600 }}>
+                Forgot password?
+              </a>
+            </div>
+
             <button type="submit" disabled={busy} className="btn-signin">
               <span className="shimmer" />
               <span style={{ position:'relative', zIndex:1 }}>

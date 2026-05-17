@@ -76,6 +76,27 @@ router.get('/me', authUser, asyncH(async (req, res) => {
   res.json({ user: rows[0] });
 }));
 
+/* ── Forgot password (user sends reset request to admin) ── */
+const forgotLimiter = rateLimit({ windowMs: 60 * 60_000, max: 3, standardHeaders: true });
+const forgotSchema = z.object({
+  email: z.string().email().max(160),
+  phone: z.string().max(24).optional(),
+});
+router.post('/forgot-password', forgotLimiter, validate(forgotSchema), asyncH(async (req, res) => {
+  const { email, phone } = req.body;
+  // Store as a contact_request so admin sees it — don't reveal if email exists
+  await query(
+    `INSERT INTO contact_requests (full_name, email, phone, plan, message)
+     VALUES (
+       COALESCE((SELECT full_name FROM users WHERE email=$1), 'Unknown'),
+       $1, COALESCE($2, (SELECT phone FROM users WHERE email=$1)), 'password_reset',
+       'Password reset requested by user from login page.'
+     )`,
+    [email, phone || null]
+  );
+  res.json({ ok: true });
+}));
+
 router.post(
   '/admin/login',
   loginLimiter,
