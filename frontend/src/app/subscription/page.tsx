@@ -1,147 +1,237 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { api } from '@/lib/api';
 import type { Subscription } from '@/lib/types';
 
-const PLANS = {
-  basic: {
+const PLAN_ORDER: Record<string, number> = { basic: 1, standard: 2, premium: 3 };
+
+const PLANS = [
+  {
+    id: 'basic',
     label: 'Basic',
     price: '₹249',
-    color: 'from-blue-500 to-brand-600',
-    features: ['1 solenoid valve', '1 relay output', 'Manual ON/OFF control', 'Scheduling'],
+    period: '/month',
+    emoji: '🪴',
+    color: '#059669', dark: '#047857', glow: 'rgba(5,150,105,0.35)',
+    features: ['Daily Water Plants', 'Motor or Light', 'Push notifications', 'Remote access'],
   },
-  premium: {
+  {
+    id: 'standard',
+    label: 'Standard',
+    price: '₹349',
+    period: '/month',
+    emoji: '🕐',
+    color: '#0284c7', dark: '#0369a1', glow: 'rgba(2,132,199,0.35)',
+    features: ['Daily Water Plants', 'Motor or Light', 'Scheduled watering', 'Weekly reports', 'Remote access'],
+  },
+  {
+    id: 'premium',
     label: 'Premium',
     price: '₹499',
-    color: 'from-purple-500 to-indigo-600',
-    features: ['3 solenoid valves', 'Moisture sensor & automation', '1 relay output', 'Scheduling', 'Voice control'],
+    period: '/month',
+    emoji: '🌟',
+    color: '#7c3aed', dark: '#6d28d9', glow: 'rgba(124,58,237,0.35)',
+    features: ['All 3 plant zones', 'Motor or Light', 'Soil moisture sensor', 'Voice control', 'Weather-based watering', 'Smart automation', 'Water usage insights'],
   },
-};
+];
 
 export default function SubscriptionPage() {
-  const router = useRouter();
-  const [sub, setSub] = useState<Subscription | null>(null);
+  const [sub, setSub]           = useState<Subscription | null | 'loading'>('loading');
   const [requesting, setRequesting] = useState(false);
-  const [requested, setRequested] = useState(false);
+  const [requested, setRequested]   = useState(false);
+  const [err, setErr]           = useState('');
 
   useEffect(() => {
     api<{ subscription: Subscription | null }>('/api/subscriptions/me')
-      .then(r => setSub(r.subscription));
+      .then(r => setSub(r.subscription))
+      .catch(() => setSub(null));
   }, []);
 
-  const requestPremium = async () => {
-    setRequesting(true);
+  const requestUpgrade = async () => {
+    setRequesting(true); setErr('');
     try {
       await api('/api/subscriptions/request-upgrade', { method: 'POST' });
       setRequested(true);
-    } catch {}
+    } catch (e: any) { setErr(e.message || 'Failed to send request'); }
     finally { setRequesting(false); }
   };
 
+  const currentPlanOrder = sub && sub !== 'loading' && sub.plan_name
+    ? (PLAN_ORDER[sub.plan_name] ?? 0) : 0;
+  const isActive = sub && sub !== 'loading' && (sub as Subscription).isActive;
+  const currentPlan = sub && sub !== 'loading' ? PLANS.find(p => p.id === (sub as Subscription).plan_name) : null;
+
   return (
     <AppShell>
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Choose your plan</h1>
-      <p className="text-sm text-gray-500 mb-4">Prices are exclusive of GST · 30-day cycle</p>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        .plan-card { animation: fadeUp 0.4s ease both; }
+      `}</style>
 
-      {/* Current plan banner */}
-      {sub?.isActive && (
-        <div className="bg-brand-50 border border-brand-200 rounded-xl p-3 mb-4 flex items-center gap-3">
-          <span className="text-xl">✅</span>
-          <div>
-            <div className="text-sm font-semibold text-brand-800 capitalize">You're on the {sub.plan_name} plan</div>
-            <div className="text-xs text-brand-600">{sub.daysRemaining} days remaining · ends {new Date(sub.end_date).toLocaleDateString('en-IN')}</div>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:20, fontWeight:900, color:'#0f172a', letterSpacing:'-0.03em' }}>
+          📋 Your Plan
+        </div>
+        <div style={{ fontSize:13, color:'#94a3b8', marginTop:2 }}>Contact admin to change your plan</div>
+      </div>
+
+      {/* ── Current plan hero (if active) ── */}
+      {isActive && currentPlan && (
+        <div className="plan-card" style={{
+          borderRadius:22,
+          background:`linear-gradient(135deg,${currentPlan.color},${currentPlan.dark})`,
+          padding:'20px 22px', marginBottom:20, color:'#fff',
+          boxShadow:`0 8px 28px ${currentPlan.glow}`,
+          position:'relative', overflow:'hidden',
+        }}>
+          <div style={{ position:'absolute', right:-20, top:-20, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.07)' }}/>
+          <div style={{ position:'absolute', right:30, bottom:-40, width:100, height:100, borderRadius:'50%', background:'rgba(255,255,255,0.05)' }}/>
+          <div style={{ position:'relative' }}>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)', textTransform:'uppercase', letterSpacing:'0.1em', fontWeight:700, marginBottom:4 }}>
+              ✅ Active Plan
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:32 }}>{currentPlan.emoji}</span>
+              <div>
+                <div style={{ fontSize:26, fontWeight:900, letterSpacing:'-0.03em' }}>{currentPlan.label}</div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)' }}>{currentPlan.price}{currentPlan.period}</div>
+              </div>
+              <div style={{ marginLeft:'auto', textAlign:'right' }}>
+                <div style={{ fontSize:36, fontWeight:900, letterSpacing:'-0.04em', lineHeight:1 }}>
+                  {(sub as Subscription).daysRemaining}
+                </div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>days left</div>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div style={{ background:'rgba(255,255,255,0.2)', borderRadius:99, height:5, marginBottom:8 }}>
+              <div style={{
+                height:'100%', borderRadius:99, background:'rgba(255,255,255,0.9)',
+                width:`${Math.min(100, (((sub as Subscription).daysRemaining ?? 0) / 30) * 100)}%`,
+                boxShadow:'0 0 8px rgba(255,255,255,0.5)',
+              }}/>
+            </div>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)' }}>
+              Expires {new Date((sub as Subscription).end_date).toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' })}
+            </div>
+            {/* Features */}
+            <div style={{ marginTop:14, display:'flex', flexWrap:'wrap', gap:'6px 16px' }}>
+              {currentPlan.features.map(f => (
+                <span key={f} style={{ fontSize:12, color:'rgba(255,255,255,0.85)', display:'flex', alignItems:'center', gap:5 }}>
+                  <span style={{ fontWeight:900 }}>✓</span> {f}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-4">
-        {/* Basic Plan — directly payable */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className={`bg-gradient-to-r ${PLANS.basic.color} p-4 text-white`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-lg">{PLANS.basic.label}</div>
-                <div className="text-blue-100 text-sm">Most popular</div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">{PLANS.basic.price}</div>
-                <div className="text-blue-100 text-xs">+ GST / 30 days</div>
-              </div>
+      {/* ── No active plan ── */}
+      {!isActive && sub !== 'loading' && (
+        <div style={{
+          borderRadius:20, padding:'16px 18px', marginBottom:20,
+          background:'linear-gradient(135deg,#fffbeb,#fef3c7)',
+          border:'2px solid #fcd34d',
+          boxShadow:'0 4px 16px rgba(251,191,36,0.2)',
+          display:'flex', alignItems:'center', gap:14,
+        }}>
+          <span style={{ fontSize:36 }}>⚡</span>
+          <div>
+            <div style={{ fontWeight:800, color:'#92400e', fontSize:15 }}>No active plan</div>
+            <div style={{ fontSize:12, color:'#b45309', marginTop:2, lineHeight:1.5 }}>
+              Contact your admin or request an upgrade below to get started
             </div>
-          </div>
-          <div className="p-4">
-            <ul className="space-y-2 mb-4">
-              {PLANS.basic.features.map(f => (
-                <li key={f} className="flex items-center gap-2 text-sm text-gray-700">
-                  <span className="text-brand-500 font-bold">✓</span> {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => router.push('/payment?plan=basic')}
-              className="btn-primary w-full py-2.5"
-            >
-              Pay ₹249 online →
-            </button>
           </div>
         </div>
+      )}
 
-        {/* Premium Plan */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden relative">
-          <div className={`bg-gradient-to-r ${PLANS.premium.color} p-4 text-white ${sub?.plan_name !== 'premium' ? 'opacity-70' : ''}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-lg">{PLANS.premium.label}</div>
-                <div className="text-purple-200 text-sm">
-                  {sub?.plan_name === 'premium' && sub?.isActive ? '✅ Your current plan' : 'Request required'}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">{PLANS.premium.price}</div>
-                <div className="text-purple-200 text-xs">+ GST / 30 days</div>
-              </div>
+      {/* ── Available upgrades ── */}
+      {(() => {
+        const upgradable = PLANS.filter(p => PLAN_ORDER[p.id] > currentPlanOrder);
+        if (upgradable.length === 0) return (
+          <div style={{
+            borderRadius:18, padding:'20px', textAlign:'center',
+            background:'#f8fafc', border:'2px solid #e2e8f0',
+          }}>
+            <div style={{ fontSize:36, marginBottom:8 }}>🏆</div>
+            <div style={{ fontWeight:800, color:'#1f2937', fontSize:16, marginBottom:4 }}>
+              You're on the highest plan!
+            </div>
+            <div style={{ fontSize:13, color:'#6b7280' }}>
+              You have access to all Eptoflow features.
             </div>
           </div>
-          <div className={`p-4 ${sub?.plan_name !== 'premium' ? 'opacity-70' : ''}`}>
-            <ul className="space-y-2 mb-4">
-              {PLANS.premium.features.map(f => (
-                <li key={f} className="flex items-center gap-2 text-sm text-gray-700">
-                  <span className="text-purple-500 font-bold">✓</span> {f}
-                </li>
+        );
+        return (
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12 }}>
+              {currentPlanOrder > 0 ? 'Available Upgrades' : 'Choose a Plan'}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {upgradable.map((p, i) => (
+                <div key={p.id} className="plan-card" style={{
+                  animationDelay:`${i * 0.08}s`,
+                  borderRadius:20, overflow:'hidden',
+                  border:`2px solid ${p.color}30`,
+                  boxShadow:`0 4px 16px ${p.glow}`,
+                  background:'#fff',
+                }}>
+                  <div style={{
+                    background:`linear-gradient(135deg,${p.color},${p.dark})`,
+                    padding:'14px 18px', color:'#fff',
+                    display:'flex', alignItems:'center', justifyContent:'space-between',
+                  }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:24 }}>{p.emoji}</span>
+                      <div>
+                        <div style={{ fontWeight:900, fontSize:17 }}>{p.label}</div>
+                        <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>Upgrade required</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontWeight:900, fontSize:22 }}>{p.price}</div>
+                      <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>{p.period}</div>
+                    </div>
+                  </div>
+                  <div style={{ padding:'14px 18px' }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'5px 14px', marginBottom:14 }}>
+                      {p.features.map(f => (
+                        <span key={f} style={{ fontSize:12, color:'#374151', display:'flex', alignItems:'center', gap:5 }}>
+                          <span style={{ color:p.color, fontWeight:900 }}>✓</span> {f}
+                        </span>
+                      ))}
+                    </div>
+                    {err && <div style={{ fontSize:12, color:'#dc2626', marginBottom:8 }}>⚠️ {err}</div>}
+                    {requested ? (
+                      <div style={{
+                        padding:'12px', borderRadius:12, background:`${p.color}12`,
+                        border:`1.5px solid ${p.color}30`, textAlign:'center',
+                      }}>
+                        <div style={{ fontSize:20, marginBottom:4 }}>📩</div>
+                        <div style={{ fontWeight:700, color:p.color, fontSize:13 }}>Request sent! Admin will reach you soon.</div>
+                      </div>
+                    ) : (
+                      <button onClick={requestUpgrade} disabled={requesting} style={{
+                        width:'100%', padding:'13px 0', borderRadius:50, border:'none',
+                        background:`linear-gradient(135deg,${p.color},${p.dark})`,
+                        color:'#fff', fontWeight:800, fontSize:14, cursor: requesting ? 'not-allowed' : 'pointer',
+                        boxShadow:`0 4px 0 ${p.dark}, 0 8px 20px ${p.glow}`,
+                        opacity: requesting ? 0.7 : 1,
+                      }}>
+                        {requesting ? '⏳ Sending…' : `📬 Request ${p.label} Upgrade →`}
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
-            </ul>
-          </div>
-          {/* Only show overlay if NOT already on premium */}
-          {sub?.plan_name !== 'premium' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[1px]">
-              {requested ? (
-                <div className="text-center px-6">
-                  <div className="text-3xl mb-2">📩</div>
-                  <div className="font-semibold text-gray-800">Request sent!</div>
-                  <div className="text-sm text-gray-500 mt-1">Our admin will reach out to you soon.</div>
-                </div>
-              ) : (
-                <div className="text-center px-6">
-                  <div className="text-3xl mb-2">🔒</div>
-                  <div className="text-sm text-gray-700 font-medium mb-3">Premium requires admin approval</div>
-                  <button
-                    onClick={requestPremium}
-                    disabled={requesting}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                  >
-                    {requesting ? 'Sending…' : 'Request Premium Upgrade'}
-                  </button>
-                </div>
-              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        );
+      })()}
 
-      <p className="text-xs text-gray-400 text-center mt-4">
-        Payment is manually verified within 24 hours of submission.
+      <p style={{ textAlign:'center', fontSize:11, color:'#94a3b8', marginTop:20 }}>
+        Admin activates your plan within 24 hours of request.
       </p>
     </AppShell>
   );
