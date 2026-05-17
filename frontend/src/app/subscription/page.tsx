@@ -88,13 +88,15 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* Premium Plan — greyed out, request only */}
+        {/* Premium Plan */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden relative">
-          <div className={`bg-gradient-to-r ${PLANS.premium.color} p-4 text-white opacity-70`}>
+          <div className={`bg-gradient-to-r ${PLANS.premium.color} p-4 text-white ${sub?.plan_name !== 'premium' ? 'opacity-70' : ''}`}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold text-lg">{PLANS.premium.label}</div>
-                <div className="text-purple-200 text-sm">Request required</div>
+                <div className="text-purple-200 text-sm">
+                  {sub?.plan_name === 'premium' && sub?.isActive ? '✅ Your current plan' : 'Request required'}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold">{PLANS.premium.price}</div>
@@ -102,7 +104,7 @@ export default function SubscriptionPage() {
               </div>
             </div>
           </div>
-          <div className="p-4 opacity-70">
+          <div className={`p-4 ${sub?.plan_name !== 'premium' ? 'opacity-70' : ''}`}>
             <ul className="space-y-2 mb-4">
               {PLANS.premium.features.map(f => (
                 <li key={f} className="flex items-center gap-2 text-sm text-gray-700">
@@ -111,28 +113,30 @@ export default function SubscriptionPage() {
               ))}
             </ul>
           </div>
-          {/* Overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[1px]">
-            {requested ? (
-              <div className="text-center px-6">
-                <div className="text-3xl mb-2">📩</div>
-                <div className="font-semibold text-gray-800">Request sent!</div>
-                <div className="text-sm text-gray-500 mt-1">Our admin will reach out to you soon.</div>
-              </div>
-            ) : (
-              <div className="text-center px-6">
-                <div className="text-3xl mb-2">🔒</div>
-                <div className="text-sm text-gray-700 font-medium mb-3">Premium requires admin approval</div>
-                <button
-                  onClick={requestPremium}
-                  disabled={requesting}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                >
-                  {requesting ? 'Sending…' : 'Request Premium Upgrade'}
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Only show overlay if NOT already on premium */}
+          {sub?.plan_name !== 'premium' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[1px]">
+              {requested ? (
+                <div className="text-center px-6">
+                  <div className="text-3xl mb-2">📩</div>
+                  <div className="font-semibold text-gray-800">Request sent!</div>
+                  <div className="text-sm text-gray-500 mt-1">Our admin will reach out to you soon.</div>
+                </div>
+              ) : (
+                <div className="text-center px-6">
+                  <div className="text-3xl mb-2">🔒</div>
+                  <div className="text-sm text-gray-700 font-medium mb-3">Premium requires admin approval</div>
+                  <button
+                    onClick={requestPremium}
+                    disabled={requesting}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+                  >
+                    {requesting ? 'Sending…' : 'Request Premium Upgrade'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
