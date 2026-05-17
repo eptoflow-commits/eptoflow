@@ -13,25 +13,35 @@ type Weather = {
   code: number; city: string; isDay: boolean;
 };
 
+// wttr.in weather codes
 const WMO: Record<number, { label: string; emoji: string }> = {
-  0:  { label:'Clear sky',         emoji:'☀️'  },
-  1:  { label:'Mainly clear',      emoji:'🌤️'  },
-  2:  { label:'Partly cloudy',     emoji:'⛅'  },
-  3:  { label:'Overcast',          emoji:'☁️'  },
-  45: { label:'Foggy',             emoji:'🌫️'  },
-  48: { label:'Icy fog',           emoji:'🌫️'  },
-  51: { label:'Light drizzle',     emoji:'🌦️'  },
-  53: { label:'Drizzle',           emoji:'🌧️'  },
-  55: { label:'Heavy drizzle',     emoji:'🌧️'  },
-  61: { label:'Light rain',        emoji:'🌧️'  },
-  63: { label:'Rain',              emoji:'🌧️'  },
-  65: { label:'Heavy rain',        emoji:'🌨️'  },
-  71: { label:'Light snow',        emoji:'🌨️'  },
-  80: { label:'Rain showers',      emoji:'🌦️'  },
-  81: { label:'Heavy showers',     emoji:'⛈️'  },
-  95: { label:'Thunderstorm',      emoji:'⛈️'  },
+  113: { label:'Sunny',             emoji:'☀️'  },
+  116: { label:'Partly cloudy',     emoji:'⛅'  },
+  119: { label:'Cloudy',            emoji:'☁️'  },
+  122: { label:'Overcast',          emoji:'☁️'  },
+  143: { label:'Foggy',             emoji:'🌫️'  },
+  176: { label:'Patchy rain',       emoji:'🌦️'  },
+  185: { label:'Patchy freezing',   emoji:'🌧️'  },
+  200: { label:'Thundery outbreaks',emoji:'⛈️'  },
+  227: { label:'Blowing snow',      emoji:'❄️'  },
+  248: { label:'Fog',               emoji:'🌫️'  },
+  260: { label:'Freezing fog',      emoji:'🌫️'  },
+  263: { label:'Light drizzle',     emoji:'🌦️'  },
+  266: { label:'Drizzle',           emoji:'🌧️'  },
+  281: { label:'Freezing drizzle',  emoji:'🌧️'  },
+  293: { label:'Light rain',        emoji:'🌧️'  },
+  296: { label:'Light rain',        emoji:'🌧️'  },
+  299: { label:'Moderate rain',     emoji:'🌧️'  },
+  302: { label:'Heavy rain',        emoji:'🌧️'  },
+  305: { label:'Heavy rain',        emoji:'🌧️'  },
+  308: { label:'Very heavy rain',   emoji:'🌧️'  },
+  353: { label:'Light showers',     emoji:'🌦️'  },
+  356: { label:'Heavy showers',     emoji:'⛈️'  },
+  389: { label:'Thunderstorm',      emoji:'⛈️'  },
+  392: { label:'Thundery snow',     emoji:'⛈️'  },
+  395: { label:'Heavy snow',        emoji:'❄️'  },
 };
-const wmo = (code: number) => WMO[code] ?? { label: 'Clear', emoji: '🌡️' };
+const wmo = (code: number) => WMO[code] ?? { label: 'Clear', emoji: '🌤️' };
 
 function wateringAdvice(w: Weather) {
   if (w.rainMm > 5)  return { msg: 'Skip watering — rain expected today', color: '#0284c7', bg: '#e0f2fe', icon: '🌧️' };
@@ -44,38 +54,45 @@ function wateringAdvice(w: Weather) {
 }
 
 async function fetchWeather(): Promise<Weather | null> {
-  return new Promise(resolve => {
-    if (!navigator.geolocation) { resolve(null); return; }
-    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
-      try {
-        const { latitude: lat, longitude: lon } = coords;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-          + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,uv_index,is_day`
-          + `&daily=precipitation_sum&timezone=auto&forecast_days=1`;
-        const r = await fetch(url);
-        const j = await r.json();
-        const c = j.current;
-        // Reverse geocode city name
-        let city = 'Your location';
-        try {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-          const gj = await geo.json();
-          city = gj.address?.city || gj.address?.town || gj.address?.village || gj.address?.county || 'Your location';
-        } catch {}
-        resolve({
-          temp: Math.round(c.temperature_2m),
-          feelsLike: Math.round(c.apparent_temperature),
-          humidity: c.relative_humidity_2m,
-          windKph: Math.round(c.wind_speed_10m),
-          rainMm: j.daily?.precipitation_sum?.[0] ?? 0,
-          uvIndex: Math.round(c.uv_index ?? 0),
-          code: c.weather_code,
-          city,
-          isDay: c.is_day === 1,
-        });
-      } catch { resolve(null); }
-    }, () => resolve(null), { timeout: 8000 });
-  });
+  try {
+    // wttr.in auto-detects location from IP — no permissions needed
+    const r = await fetch('https://wttr.in/?format=j1', { cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const c = j.current_condition?.[0];
+    const area = j.nearest_area?.[0];
+    if (!c) return null;
+
+    const city = area?.areaName?.[0]?.value
+              || area?.region?.[0]?.value
+              || 'Your location';
+
+    const code = parseInt(c.weatherCode ?? '113');
+    const rainMm = parseFloat(j.weather?.[0]?.hourly?.reduce(
+      (sum: number, h: any) => sum + parseFloat(h.precipMM ?? '0'), 0
+    ) ?? '0');
+
+    // wttr.in doesn't give UV directly — estimate from cloud cover
+    const cloudCover = parseInt(c.cloudcover ?? '0');
+    const uvEstimate = Math.max(0, Math.round((10 - cloudCover / 10) * 0.9));
+
+    const isDay = (() => {
+      const h = new Date().getHours();
+      return h >= 6 && h < 19;
+    })();
+
+    return {
+      temp: parseInt(c.temp_C ?? '25'),
+      feelsLike: parseInt(c.FeelsLikeC ?? '25'),
+      humidity: parseInt(c.humidity ?? '60'),
+      windKph: parseInt(c.windspeedKmph ?? '0'),
+      rainMm: isNaN(rainMm) ? 0 : Math.round(rainMm * 10) / 10,
+      uvIndex: uvEstimate,
+      code,
+      city,
+      isDay,
+    };
+  } catch { return null; }
 }
 
 /* ─── Dashboard ───────────────────────────────────────────────────────── */
@@ -169,9 +186,14 @@ export default function DashboardPage() {
             border:'1.5px solid #bbf7d0', display:'flex', alignItems:'center', gap:12,
           }}>
             <span style={{ fontSize:28 }}>🌿</span>
-            <div style={{ fontSize:13, color:'#166534', fontWeight:600 }}>
-              Enable location to get weather-based watering advice
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:13, color:'#166534', fontWeight:700 }}>Weather unavailable</div>
+              <div style={{ fontSize:11, color:'#15803d', marginTop:2 }}>Check your internet connection</div>
             </div>
+            <button onClick={() => { setWeather('loading'); fetchWeather().then(w => setWeather(w)); }}
+              style={{ padding:'8px 14px', borderRadius:10, border:'none', background:'#059669', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              Retry
+            </button>
           </div>
         ) : (
           <div className="drop-in" style={{
