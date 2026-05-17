@@ -307,6 +307,62 @@ router.post('/premium-requests/:id/dismiss', asyncH(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ----- Management Expenses --------------------------------------------------
+// Auto-create table on first use
+const ensureExpensesTable = async () => {
+  await query(`
+    CREATE TABLE IF NOT EXISTS management_expenses (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      expense_type  TEXT        NOT NULL,
+      category      TEXT,
+      description   TEXT        NOT NULL,
+      receipt_number TEXT,
+      amount        NUMERIC(12,2) NOT NULL,
+      expense_date  DATE        NOT NULL,
+      added_by_admin UUID,
+      notes         TEXT,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+};
+
+router.get('/management-expenses', asyncH(async (_req, res) => {
+  await ensureExpensesTable();
+  const { rows } = await query(
+    `SELECT * FROM management_expenses ORDER BY expense_date DESC, created_at DESC LIMIT 500`
+  );
+  res.json({ expenses: rows });
+}));
+
+const expenseSchema = z.object({
+  expense_type:   z.enum(['equipment','salary','maintenance','rent','marketing','utilities','travel','software','other']),
+  category:       z.string().max(80).optional(),
+  description:    z.string().min(2).max(500),
+  receipt_number: z.string().max(100).optional(),
+  amount:         z.number().positive().max(10000000),
+  expense_date:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  notes:          z.string().max(1000).optional(),
+});
+router.post('/management-expenses', validate(expenseSchema), asyncH(async (req, res) => {
+  await ensureExpensesTable();
+  const { expense_type, category, description, receipt_number, amount, expense_date, notes } = req.body;
+  const { rows } = await query(
+    `INSERT INTO management_expenses
+       (expense_type, category, description, receipt_number, amount, expense_date, added_by_admin, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [expense_type, category || null, description, receipt_number || null, amount, expense_date, req.admin.id, notes || null]
+  );
+  await audit({ actorType: 'admin', actorId: req.admin.id, action: 'expense.create', entityType: 'management_expense', entityId: rows[0].id, metadata: { expense_type, amount } });
+  res.status(201).json({ expense: rows[0] });
+}));
+
+router.delete('/management-expenses/:id', asyncH(async (req, res) => {
+  const { rowCount } = await query(`DELETE FROM management_expenses WHERE id=$1`, [req.params.id]);
+  if (!rowCount) throw Errors.notFound('Expense');
+  await audit({ actorType: 'admin', actorId: req.admin.id, action: 'expense.delete', entityType: 'management_expense', entityId: req.params.id });
+  res.json({ ok: true });
+}));
+
 // ----- Audit + schedules ---------------------------------------------------
 router.get('/audit-logs', asyncH(async (_req, res) => {
   const { rows } = await query(`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500`);
