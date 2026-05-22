@@ -11,9 +11,31 @@ const router = Router();
 router.use(authUser, loadSubscription({ requireActive: true }), requirePlan('premium'));
 
 const schema = z.object({
-  device_id: z.string().uuid(),
+  device_id:  z.string().uuid(),
   transcript: z.string().min(1).max(400),
+  lat: z.number().optional(),
+  lon: z.number().optional(),
 });
+
+/** Replace custom zone names with canonical keys before NLU parsing. */
+async function resolveZoneNames(deviceId, transcript) {
+  try {
+    const { rows } = await query(
+      `SELECT zone_key, zone_name FROM device_zones WHERE device_id=$1`,
+      [deviceId]
+    );
+    if (!rows.length) return transcript;
+    const sorted = [...rows].sort((a, b) => b.zone_name.length - a.zone_name.length);
+    let t = transcript;
+    for (const { zone_key, zone_name } of sorted) {
+      const re = new RegExp(zone_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      t = t.replace(re, zone_key);
+    }
+    return t;
+  } catch {
+    return transcript;
+  }
+}
 
 router.post('/command', validate(schema), asyncH(async (req, res) => {
   const { device_id, transcript } = req.body;
@@ -25,7 +47,8 @@ router.post('/command', validate(schema), asyncH(async (req, res) => {
   if (!device) throw Errors.notFound('Device');
   if (!device.enabled) throw Errors.forbidden('Device disabled');
 
-  const parse = parseVoiceCommand(transcript);
+  const resolved = await resolveZoneNames(device_id, transcript);
+  const parse = parseVoiceCommand(resolved);
   if (parse.error) {
     await query(
       `INSERT INTO voice_logs (user_id, device_id, command_text, execution_status)

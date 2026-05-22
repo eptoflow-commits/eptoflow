@@ -161,3 +161,16 @@ CREATE TABLE IF NOT EXISTS voice_logs (
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_voice_user ON voice_logs(user_id, created_at DESC);
+
+-- Custom zone names per device (users rename valve1/2/3 and relay1)
+CREATE TABLE IF NOT EXISTS device_zones (
+  id         TEXT PRIMARY KEY,
+  device_id  TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  zone_key   TEXT NOT NULL,   -- 'valve1' | 'valve2' | 'valve3' | 'relay1'
+  zone_name  TEXT NOT NULL,   -- user-chosen name e.g. "Tomato Bed"
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(device_id, zone_key)
+);
+CREATE INDEX IF NOT EXISTS idx_device_zones_device ON device_zones(device_id);

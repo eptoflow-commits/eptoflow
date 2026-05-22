@@ -18,6 +18,36 @@ const schema = z.object({
   lon: z.number().optional(),
 });
 
+/** Build a pre-processed transcript where custom zone names → canonical keys.
+ *  e.g. "water the Tomato Bed for 5 minutes" → "water the valve1 for 5 minutes"
+ *  Matching is case-insensitive and longest-match first.
+ */
+async function resolveZoneNames(
+  env: any,
+  deviceId: string,
+  transcript: string,
+): Promise<string> {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT zone_key, zone_name FROM device_zones WHERE device_id=?1`
+    ).bind(deviceId).all<any>();
+    if (!results.length) return transcript;
+
+    // Sort longest name first so "Main Garden" beats "Garden"
+    const sorted = [...results].sort(
+      (a: any, b: any) => b.zone_name.length - a.zone_name.length
+    );
+    let t = transcript;
+    for (const { zone_key, zone_name } of sorted as any[]) {
+      const re = new RegExp(zone_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      t = t.replace(re, zone_key);
+    }
+    return t;
+  } catch {
+    return transcript; // table may not exist yet — fall back to original
+  }
+}
+
 app.post('/command', async (c) => {
   const u = c.get('user')!;
   const { device_id, transcript, lat, lon } = schema.parse(await c.req.json());
@@ -28,7 +58,9 @@ app.post('/command', async (c) => {
   if (!device) throw Err.notFound('Device');
   if (!device.enabled) throw Err.forbidden('Device disabled');
 
-  const parse = parseVoice(transcript);
+  // Substitute custom zone names before NLU parsing
+  const resolved = await resolveZoneNames(c.env, device_id, transcript);
+  const parse = parseVoice(resolved);
   if (parse.error) {
     await c.env.DB.prepare(
       `INSERT INTO voice_logs (id, user_id, device_id, command_text, execution_status)

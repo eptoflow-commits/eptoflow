@@ -152,4 +152,89 @@ router.delete('/:id', asyncH(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ── Zone names ─────────────────────────────────────────────────────────────
+const ZONE_KEYS = ['valve1', 'valve2', 'valve3', 'relay1'];
+const ZONE_DEFAULTS = {
+  valve1: 'Zone 1', valve2: 'Zone 2', valve3: 'Zone 3', relay1: 'Main Motor',
+};
+
+const zoneSchema = z.object({
+  zones: z.record(
+    z.enum(['valve1', 'valve2', 'valve3', 'relay1']),
+    z.string().min(1).max(40).trim(),
+  ),
+});
+
+/** GET /api/devices/:id/zones */
+router.get('/:id/zones', asyncH(async (req, res) => {
+  const { rows: devRows } = await query(
+    `SELECT id FROM devices WHERE id=$1 AND user_id=$2`,
+    [req.params.id, req.user.id]
+  );
+  if (!devRows[0]) throw Errors.notFound('Device');
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS device_zones (
+      id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_id  UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      user_id    UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+      zone_key   VARCHAR(20) NOT NULL,
+      zone_name  VARCHAR(80) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(device_id, zone_key)
+    )
+  `);
+
+  const { rows } = await query(
+    `SELECT zone_key, zone_name FROM device_zones WHERE device_id=$1`,
+    [req.params.id]
+  );
+  const named = Object.fromEntries(rows.map(r => [r.zone_key, r.zone_name]));
+  const zones = Object.fromEntries(ZONE_KEYS.map(k => [k, named[k] ?? ZONE_DEFAULTS[k]]));
+  res.json({ zones });
+}));
+
+/** PATCH /api/devices/:id/zones */
+router.patch('/:id/zones', asyncH(async (req, res) => {
+  const { rows: devRows } = await query(
+    `SELECT id FROM devices WHERE id=$1 AND user_id=$2`,
+    [req.params.id, req.user.id]
+  );
+  if (!devRows[0]) throw Errors.notFound('Device');
+
+  const { zones } = zoneSchema.parse(req.body);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS device_zones (
+      id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_id  UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      user_id    UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+      zone_key   VARCHAR(20) NOT NULL,
+      zone_name  VARCHAR(80) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(device_id, zone_key)
+    )
+  `);
+
+  for (const [key, name] of Object.entries(zones)) {
+    await query(
+      `INSERT INTO device_zones (device_id, user_id, zone_key, zone_name)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT(device_id, zone_key)
+       DO UPDATE SET zone_name=EXCLUDED.zone_name, updated_at=NOW()`,
+      [req.params.id, req.user.id, key, name]
+    );
+  }
+
+  const { rows } = await query(
+    `SELECT zone_key, zone_name FROM device_zones WHERE device_id=$1`,
+    [req.params.id]
+  );
+  const named = Object.fromEntries(rows.map(r => [r.zone_key, r.zone_name]));
+  const allZones = Object.fromEntries(ZONE_KEYS.map(k => [k, named[k] ?? ZONE_DEFAULTS[k]]));
+  res.json({ zones: allZones });
+}));
+
 export default router;

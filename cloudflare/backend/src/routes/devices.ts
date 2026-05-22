@@ -122,4 +122,92 @@ app.delete('/:id', async (c) => {
   return c.json({ ok: true });
 });
 
+// ── Zone names ─────────────────────────────────────────────────────────────
+// Each device has up to 4 named zones: valve1, valve2, valve3, relay1.
+// Users give them friendly names like "Tomato Bed" or "Rose Garden".
+// Defaults are returned for any zone that hasn't been named yet.
+
+const ZONE_KEYS = ['valve1', 'valve2', 'valve3', 'relay1'] as const;
+const ZONE_DEFAULTS: Record<string, string> = {
+  valve1: 'Zone 1', valve2: 'Zone 2', valve3: 'Zone 3', relay1: 'Main Motor',
+};
+
+const zoneSchema = z.object({
+  zones: z.record(
+    z.enum(['valve1', 'valve2', 'valve3', 'relay1']),
+    z.string().min(1).max(40).trim(),
+  ),
+});
+
+/** GET /api/devices/:id/zones — list current zone names (with defaults) */
+app.get('/:id/zones', async (c) => {
+  const u = c.get('user')!;
+  const deviceId = c.req.param('id');
+
+  const device = await c.env.DB.prepare(
+    `SELECT id FROM devices WHERE id=?1 AND user_id=?2`
+  ).bind(deviceId, u.id).first<any>();
+  if (!device) throw Err.notFound('Device');
+
+  // Ensure table exists (idempotent — safe to run every time)
+  await c.env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS device_zones (
+       id TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT NOT NULL,
+       zone_key TEXT NOT NULL, zone_name TEXT NOT NULL,
+       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+       UNIQUE(device_id, zone_key))`
+  ).run();
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT zone_key, zone_name FROM device_zones WHERE device_id=?1`
+  ).bind(deviceId).all<any>();
+
+  const named = Object.fromEntries(results.map((r: any) => [r.zone_key, r.zone_name]));
+  const zones = Object.fromEntries(
+    ZONE_KEYS.map((k) => [k, named[k] ?? ZONE_DEFAULTS[k]])
+  );
+  return c.json({ zones });
+});
+
+/** PATCH /api/devices/:id/zones — upsert one or more zone names */
+app.patch('/:id/zones', async (c) => {
+  const u = c.get('user')!;
+  const deviceId = c.req.param('id');
+
+  const device = await c.env.DB.prepare(
+    `SELECT id FROM devices WHERE id=?1 AND user_id=?2`
+  ).bind(deviceId, u.id).first<any>();
+  if (!device) throw Err.notFound('Device');
+
+  const { zones } = zoneSchema.parse(await c.req.json());
+
+  await c.env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS device_zones (
+       id TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT NOT NULL,
+       zone_key TEXT NOT NULL, zone_name TEXT NOT NULL,
+       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+       UNIQUE(device_id, zone_key))`
+  ).run();
+
+  for (const [key, name] of Object.entries(zones)) {
+    await c.env.DB.prepare(
+      `INSERT INTO device_zones (id, device_id, user_id, zone_key, zone_name)
+       VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT(device_id, zone_key)
+       DO UPDATE SET zone_name=excluded.zone_name, updated_at=datetime('now')`
+    ).bind(newId(), deviceId, u.id, key, name).run();
+  }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT zone_key, zone_name FROM device_zones WHERE device_id=?1`
+  ).bind(deviceId).all<any>();
+  const named = Object.fromEntries(results.map((r: any) => [r.zone_key, r.zone_name]));
+  const allZones = Object.fromEntries(
+    ZONE_KEYS.map((k) => [k, named[k] ?? ZONE_DEFAULTS[k]])
+  );
+  return c.json({ zones: allZones });
+});
+
 export default app;

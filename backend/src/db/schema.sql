@@ -230,3 +230,25 @@ BEGIN
                         FOR EACH ROW EXECUTE FUNCTION set_updated_at();', t, t);
     END LOOP;
 END$$;
+
+-- Custom zone names per device
+CREATE TABLE IF NOT EXISTS device_zones (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id  UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id    UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  zone_key   VARCHAR(20) NOT NULL,
+  zone_name  VARCHAR(80) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(device_id, zone_key)
+);
+CREATE INDEX IF NOT EXISTS idx_device_zones_device ON device_zones(device_id);
+
+-- Trigger to auto-update updated_at
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_device_zones_updated ON device_zones;
+  CREATE TRIGGER trg_device_zones_updated
+    BEFORE UPDATE ON device_zones
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+END$$;

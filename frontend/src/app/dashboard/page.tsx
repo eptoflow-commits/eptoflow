@@ -5,6 +5,8 @@ import AppShell from '@/components/AppShell';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import type { Device, Subscription, Notification, Plan } from '@/lib/types';
+import VoiceButton from '@/components/VoiceButton';
+import ZoneNameEditor from '@/components/ZoneNameEditor';
 
 /* ─── Weather helpers ─────────────────────────────────────────────────── */
 type Weather = {
@@ -553,6 +555,29 @@ export default function DashboardPage() {
               </Link>
             ))}
           </div>
+
+          {/* ── Premium: Zone naming + Voice control ── */}
+          {sub?.plan_name === 'premium' && devices.length > 0 && (
+            <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:12 }}>
+              {devices.map(d => (
+                <div key={d.id} style={{
+                  background:'#fff', borderRadius:16, padding:16,
+                  border:'1.5px solid #ede9fe',
+                  boxShadow:'0 2px 8px rgba(124,58,237,0.06)',
+                }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                    <span>⚡</span>
+                    <span>{d.device_name} — Voice &amp; Zone Control</span>
+                    <span style={{ marginLeft:'auto', fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'2px 7px', borderRadius:20, fontWeight:600 }}>PREMIUM</span>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    <ZoneNameEditor deviceId={d.id} />
+                    <VoiceButton deviceId={d.id} disabled={d.status !== 'online'} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         )}
       </div>
 
