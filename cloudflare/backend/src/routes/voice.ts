@@ -11,13 +11,16 @@ const app = new Hono<AppCtx>();
 app.use('*', authUser, loadSubscription({ requireActive: true }), requirePlan('premium'));
 
 const schema = z.object({
-  device_id: z.string().min(1),
+  device_id:  z.string().min(1),
   transcript: z.string().min(1).max(400),
+  // Optional GPS coords from VoiceButton (used for location-aware responses)
+  lat: z.number().optional(),
+  lon: z.number().optional(),
 });
 
 app.post('/command', async (c) => {
   const u = c.get('user')!;
-  const { device_id, transcript } = schema.parse(await c.req.json());
+  const { device_id, transcript, lat, lon } = schema.parse(await c.req.json());
 
   const device = await c.env.DB.prepare(
     `SELECT id, plan_bound, enabled FROM devices WHERE id=?1 AND user_id=?2`
@@ -37,6 +40,80 @@ app.post('/command', async (c) => {
     );
   }
 
+  const cmdType: string = parse.parsed?.command_type;
+
+  // ── Information queries — no device command, fetch external data ──────────
+  if (cmdType === 'query_weather' || cmdType === 'query_aqi') {
+    await c.env.DB.prepare(
+      `INSERT INTO voice_logs (id, user_id, device_id, command_text, parsed_command, execution_status)
+       VALUES (?1, ?2, ?3, ?4, ?5, 'queried')`
+    ).bind(newId(), u.id, device_id, transcript, JSON.stringify(parse.parsed)).run();
+
+    // Build location URL — prefer GPS coords if provided by VoiceButton
+    const locPart = (lat != null && lon != null) ? `${lat},${lon}` : '';
+    const weatherUrl = locPart
+      ? `https://wttr.in/${locPart}?format=j1`
+      : 'https://wttr.in/?format=j1';
+
+    try {
+      const wr = await fetch(weatherUrl, { cf: { cacheTtl: 300 } } as any);
+      if (!wr.ok) throw new Error('wttr.in unavailable');
+      const wj = await wr.json() as any;
+      const cc = wj.current_condition?.[0];
+      const area = wj.nearest_area?.[0];
+      const city = area?.areaName?.[0]?.value || area?.region?.[0]?.value || 'your location';
+
+      if (cmdType === 'query_weather') {
+        return c.json({
+          parsed: parse.parsed,
+          result: {
+            city,
+            temp_c:    parseInt(cc?.temp_C ?? '25'),
+            feels_c:   parseInt(cc?.FeelsLikeC ?? '25'),
+            humidity:  parseInt(cc?.humidity ?? '60'),
+            wind_kph:  parseInt(cc?.windspeedKmph ?? '0'),
+            condition: cc?.weatherDesc?.[0]?.value ?? 'Clear',
+          },
+        });
+      }
+
+      // query_aqi — fetch from Open-Meteo using GPS or wttr.in area coords
+      const aqLat = lat ?? parseFloat(area?.latitude ?? '0');
+      const aqLon = lon ?? parseFloat(area?.longitude ?? '0');
+      const aqr = await fetch(
+        `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${aqLat}&longitude=${aqLon}&current=pm10,pm2_5,us_aqi&timezone=auto`
+      );
+      const aqj = await aqr.json() as any;
+      return c.json({
+        parsed: parse.parsed,
+        result: {
+          city,
+          us_aqi: aqj.current?.us_aqi ?? null,
+          pm2_5:  aqj.current?.pm2_5  ?? null,
+          pm10:   aqj.current?.pm10   ?? null,
+        },
+      });
+    } catch {
+      return c.json({
+        parsed: parse.parsed,
+        result: null,
+        message: 'Weather data temporarily unavailable.',
+      });
+    }
+  }
+
+  if (cmdType === 'query_status') {
+    await c.env.DB.prepare(
+      `INSERT INTO voice_logs (id, user_id, device_id, command_text, parsed_command, execution_status)
+       VALUES (?1, ?2, ?3, ?4, ?5, 'queried')`
+    ).bind(newId(), u.id, device_id, transcript, JSON.stringify(parse.parsed)).run();
+    const d = await c.env.DB.prepare(
+      `SELECT device_name, status, last_seen_at FROM devices WHERE id=?1`
+    ).bind(device_id).first<any>();
+    return c.json({ parsed: parse.parsed, result: d ?? { status: 'unknown' } });
+  }
+
+  // ── Device action commands ─────────────────────────────────────────────────
   try {
     const command = await enqueue(c.env, {
       userId: u.id,

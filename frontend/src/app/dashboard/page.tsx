@@ -73,10 +73,31 @@ function wateringAdvice(w: Weather) {
   return { msg: 'Good day to water your garden!', color: '#059669', bg: '#ecfdf5', icon: '🌿' };
 }
 
+/**
+ * Try to get GPS coords from the browser.
+ * Returns null silently if the user denies or the API is unavailable.
+ */
+async function getBrowserGps(): Promise<{ lat: number; lon: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      ()  => resolve(null),
+      { timeout: 5000, maximumAge: 5 * 60 * 1000 },
+    );
+  });
+}
+
 async function fetchWeather(): Promise<Weather | null> {
   try {
-    // wttr.in auto-detects location from IP — no permissions needed
-    const r = await fetch('https://wttr.in/?format=j1', { cache: 'no-store' });
+    // Prefer GPS coordinates so weather matches the actual device location.
+    // Fall back to wttr.in IP-based auto-detection if GPS is unavailable.
+    const gps = await getBrowserGps();
+    const url = gps
+      ? `https://wttr.in/${gps.lat},${gps.lon}?format=j1`
+      : 'https://wttr.in/?format=j1';
+
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
     const c = j.current_condition?.[0];
@@ -96,9 +117,9 @@ async function fetchWeather(): Promise<Weather | null> {
     const uvEstimate = Math.max(0, Math.round((10 - cloudCover / 10) * 0.9));
     const isDay = new Date().getHours() >= 6 && new Date().getHours() < 19;
 
-    // Get lat/lon from wttr.in for AQI fetch
-    const lat = parseFloat(area?.latitude ?? '0');
-    const lon = parseFloat(area?.longitude ?? '0');
+    // Use GPS coords for AQI if available; otherwise fall back to wttr.in area coords
+    const lat = gps?.lat ?? parseFloat(area?.latitude ?? '0');
+    const lon = gps?.lon ?? parseFloat(area?.longitude ?? '0');
 
     // Fetch AQI from Open-Meteo Air Quality (free, no key)
     let aqi: number | null = null;

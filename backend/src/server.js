@@ -58,6 +58,8 @@ import deviceApiRoutes from './routes/deviceApi.routes.js';
 import schedulesRoutes from './routes/schedules.routes.js';
 import subscriptionsRoutes from './routes/subscriptions.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
+import alexaRoutes from './routes/alexa.routes.js';
+import googleAssistantRoutes from './routes/googleAssistant.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
@@ -88,6 +90,8 @@ app.use('/api/devices', devicesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/voice/alexa', alexaRoutes);
+app.use('/api/voice/google', googleAssistantRoutes);
 app.use('/api/notifications', notificationsRoutes);
 
 // ESP32 device-facing API

@@ -14,6 +14,10 @@ export interface Env {
   SUBSCRIPTION_DAYS: string;
   JWT_EXPIRES_IN: string;
   DEVICE_JWT_EXPIRES_IN: string;
+
+  // Voice / smart-assistant integrations (optional — set via wrangler secret)
+  /** Your Alexa Skill ID — used for future request-signature verification */
+  ALEXA_SKILL_ID?: string;
 }
 
 export function cfg(env: Env) {

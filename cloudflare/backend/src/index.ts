@@ -15,6 +15,8 @@ import deviceApiRoutes from './routes/deviceApi';
 import schedulesRoutes from './routes/schedules';
 import subscriptionsRoutes from './routes/subscriptions';
 import voiceRoutes from './routes/voice';
+import alexaRoutes from './routes/alexa';
+import googleAssistantRoutes from './routes/googleAssistant';
 import notificationsRoutes from './routes/notifications';
 import adminRoutes from './routes/admin';
 
@@ -41,6 +43,8 @@ app.route('/api/device', deviceApiRoutes);
 app.route('/api/schedules', schedulesRoutes);
 app.route('/api/subscriptions', subscriptionsRoutes);
 app.route('/api/voice', voiceRoutes);
+app.route('/api/voice/alexa', alexaRoutes);
+app.route('/api/voice/google', googleAssistantRoutes);
 app.route('/api/notifications', notificationsRoutes);
 app.route('/api/admin', adminRoutes);
 
