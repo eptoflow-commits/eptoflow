@@ -17,7 +17,7 @@
 // the built-in HTTPClient timeout.
 //
 // Responsibilities:
-//   - Device authentication & JWT refresh
+//   - Device authentication & JWT refresh (with cold-start retry)
 //   - Poll for pending commands (GET /api/device/next)
 //   - ACK commands (POST /api/device/ack/:id)
 //   - Push sensor readings (POST /api/device/sensor)
@@ -25,6 +25,12 @@
 //   - Fetch full config on boot (GET /api/device/config)
 //   - OTA update check (GET /api/device/ota)
 // ============================================================================
+
+// Each HTTP method creates its own WiFiClientSecure — sharing one instance
+// across calls corrupts TLS state and causes HTTP -1 errors.
+#define MAKE_SECURE_CLIENT() \
+  WiFiClientSecure _sc; \
+  _sc.setInsecure();
 
 class CloudClient {
 public:
@@ -36,49 +42,63 @@ public:
     Serial.println("[cloud] client ready");
   }
 
-  // ── HTTPS helper — use this instead of http.begin(url) ───────────────────
-  // setInsecure() skips certificate verification (fine for internal API calls)
-  bool beginSecure(HTTPClient& http, const String& url) {
-    _secureClient.setInsecure();
-    return http.begin(_secureClient, url);
-  }
-
+  // ── Authenticate with retry (handles Render.com cold-start) ─────────────
+  // Render free tier sleeps after 15 min; first request gets HTTP -1 or 502
+  // while the dyno wakes (~30 s). We retry up to AUTH_RETRIES times.
   bool authenticate() {
-    HTTPClient http;
-    String url = _baseUrl + "/api/device/auth";
-    beginSecure(http, url);
-    http.addHeader("Content-Type", "application/json");
+    const int   AUTH_RETRIES   = 5;
+    const int   AUTH_RETRY_MS  = 8000;  // 8 s between retries (40 s total)
 
-    DynamicJsonDocument req(256);
-    req["device_uid"]      = _deviceUid;
-    req["device_secret"]   = _deviceSecret;
-    req["firmware_version"]= FIRMWARE_VERSION;
-    String body; serializeJson(req, body);
+    for (int attempt = 1; attempt <= AUTH_RETRIES; attempt++) {
+      Serial.printf("[cloud] auth attempt %d/%d\n", attempt, AUTH_RETRIES);
 
-    int code = http.POST(body);
-    if (code == 200) {
-      DynamicJsonDocument res(512);
-      deserializeJson(res, http.getString());
-      const char* tok = res["token"];
-      if (tok) {
-        _token = String(tok);
-        saveToken();
-        Serial.println("[cloud] authenticated ✓");
-        http.end(); return true;
+      MAKE_SECURE_CLIENT()
+      HTTPClient http;
+      http.setTimeout(10000);  // 10 s timeout
+      http.begin(_sc, _baseUrl + "/api/device/auth");
+      http.addHeader("Content-Type", "application/json");
+
+      DynamicJsonDocument req(256);
+      req["device_uid"]      = _deviceUid;
+      req["device_secret"]   = _deviceSecret;
+      req["firmware_version"]= FIRMWARE_VERSION;
+      String body; serializeJson(req, body);
+
+      int code = http.POST(body);
+      Serial.printf("[cloud] auth HTTP %d\n", code);
+
+      if (code == 200) {
+        DynamicJsonDocument res(512);
+        deserializeJson(res, http.getString());
+        const char* tok = res["token"];
+        if (tok) {
+          _token = String(tok);
+          saveToken();
+          Serial.println("[cloud] authenticated ✓");
+          http.end(); return true;
+        }
+      }
+      http.end();
+
+      if (attempt < AUTH_RETRIES) {
+        Serial.printf("[cloud] retrying in %d s…\n", AUTH_RETRY_MS / 1000);
+        delay(AUTH_RETRY_MS);
       }
     }
-    Serial.printf("[cloud] auth failed HTTP %d\n", code);
-    http.end(); return false;
+    Serial.println("[cloud] auth FAILED after all retries");
+    return false;
   }
 
   // ── Fetch & execute next command ─────────────────────────────────────────
   bool pollCommand() {
     if (_token.isEmpty()) return false;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/next");
+    http.setTimeout(8000);
+    http.begin(_sc, _baseUrl + "/api/device/next");
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
-    if (code == 401) { _token = ""; return false; } // re-auth needed
+    if (code == 401) { _token = ""; http.end(); return false; }
     if (code != 200) { http.end(); return false; }
 
     DynamicJsonDocument res(1024);
@@ -87,7 +107,7 @@ public:
 
     if (res["command"].isNull()) return false;
 
-    JsonObject cmd     = res["command"];
+    JsonObject  cmd    = res["command"];
     const char* cmdId  = cmd["id"];
     const char* type   = cmd["command_type"];
     JsonObject  payload= cmd["payload"];
@@ -101,8 +121,10 @@ public:
   // ── Send sensor reading ───────────────────────────────────────────────────
   bool pushSensor(const String& sensorJson) {
     if (_token.isEmpty()) return false;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/sensor");
+    http.setTimeout(8000);
+    http.begin(_sc, _baseUrl + "/api/device/sensor");
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     int code = http.POST(sensorJson);
@@ -113,8 +135,10 @@ public:
   // ── Heartbeat ─────────────────────────────────────────────────────────────
   bool heartbeat(const String& stateJson) {
     if (_token.isEmpty()) return false;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/heartbeat");
+    http.setTimeout(8000);
+    http.begin(_sc, _baseUrl + "/api/device/heartbeat");
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     String body = "{\"relay_state\":" + stateJson + ",\"firmware\":\"" FIRMWARE_VERSION "\"}";
@@ -127,8 +151,10 @@ public:
   // ── Fetch config (automation rules, relay licenses) ───────────────────────
   bool fetchConfig() {
     if (_token.isEmpty()) return false;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/config");
+    http.setTimeout(10000);
+    http.begin(_sc, _baseUrl + "/api/device/config");
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
@@ -137,14 +163,12 @@ public:
     deserializeJson(doc, http.getString());
     http.end();
 
-    // Apply relay licenses
     for (JsonObject lic : doc["relay_licenses"].as<JsonArray>()) {
-      const char* key  = lic["relay_key"];
-      bool        act  = lic["activated"];
+      const char* key = lic["relay_key"];
+      bool        act = lic["activated"];
       if (key) Relays.setActivated(key, act);
     }
 
-    // Apply automation rules
     String rulesJson;
     serializeJson(doc["automation_rules"], rulesJson);
     AutoEngine.loadFromJson(rulesJson.c_str());
@@ -156,8 +180,10 @@ public:
   // ── OTA update check ──────────────────────────────────────────────────────
   bool checkOta() {
     if (_token.isEmpty()) return false;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/ota?firmware=" FIRMWARE_VERSION);
+    http.setTimeout(10000);
+    http.begin(_sc, _baseUrl + "/api/device/ota?firmware=" FIRMWARE_VERSION);
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
@@ -177,11 +203,10 @@ public:
   bool isAuthenticated() const { return !_token.isEmpty(); }
 
 private:
-  String          _baseUrl;
-  String          _deviceUid;
-  String          _deviceSecret;
-  String          _token;
-  WiFiClientSecure _secureClient;
+  String _baseUrl;
+  String _deviceUid;
+  String _deviceSecret;
+  String _token;
 
   void saveToken() {
     Preferences p; p.begin(NVS_NS_DEVICE, false);
@@ -197,8 +222,10 @@ private:
 
   void ack(const char* cmdId, const char* status) {
     if (!cmdId || _token.isEmpty()) return;
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, _baseUrl + "/api/device/ack/" + cmdId);
+    http.setTimeout(8000);
+    http.begin(_sc, _baseUrl + "/api/device/ack/" + cmdId);
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     String body = String("{\"status\":\"") + status + "\"}";
@@ -214,8 +241,8 @@ private:
       return true;
     }
     if (strcmp(type, "water_for") == 0) {
-      const char* target  = payload["target"];
-      uint32_t    dur     = payload["duration"] | 300;
+      const char* target = payload["target"];
+      uint32_t    dur    = payload["duration"] | 300;
       return Relays.turnOn(target, dur * 1000UL);
     }
     if (strcmp(type, "valve_on") == 0) {
@@ -239,13 +266,11 @@ private:
       return true;
     }
     if (strcmp(type, "sync_automation") == 0) {
-      const char* valveKey = payload["valve_key"];
       String ruleJson; serializeJson(payload["rule"], ruleJson);
-      AutoEngine.updateRule(valveKey, ruleJson.c_str());
+      AutoEngine.updateRule(payload["valve_key"], ruleJson.c_str());
       return true;
     }
     if (strcmp(type, "push_config") == 0) {
-      // Full config push from admin
       for (JsonObject lic : payload["licenses"].as<JsonArray>()) {
         Relays.setActivated(lic["relay_key"], (bool)lic["activated"]);
       }
@@ -265,13 +290,15 @@ private:
 
   bool performOta(const char* url) {
 #ifdef ARDUINO_ARCH_ESP32
+    MAKE_SECURE_CLIENT()
     HTTPClient http;
-    beginSecure(http, String(url));
+    http.setTimeout(60000);
+    http.begin(_sc, String(url));
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
 
-    int   total  = http.getSize();
+    int         total  = http.getSize();
     WiFiClient* stream = http.getStreamPtr();
     if (!Update.begin(total)) {
       Serial.println("[ota] not enough space"); http.end(); return false;
