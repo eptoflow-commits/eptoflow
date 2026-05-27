@@ -40,7 +40,11 @@ ModbusSensor    Sensor;
 AutomationEngine AutoEngine;
 CloudClient     Cloud;
 
-// ── WiFi credentials (provisioned via NVS / web portal) ─────────────────────
+// ── WiFi credentials ─────────────────────────────────────────────────────────
+// Hardcoded fallback — used when NVS has no stored credentials.
+#define DEFAULT_WIFI_SSID     "eptosi"
+#define DEFAULT_WIFI_PASSWORD "eptosi332"
+
 static String g_ssid;
 static String g_password;
 static String g_deviceUid;
@@ -64,8 +68,8 @@ static bool g_wifiWasConnected = false;
 void loadProvisioning() {
   Preferences p;
   p.begin(NVS_NS_DEVICE, true);
-  g_ssid         = p.getString("ssid",       "");
-  g_password     = p.getString("password",   "");
+  g_ssid         = p.getString("ssid",       DEFAULT_WIFI_SSID);
+  g_password     = p.getString("password",   DEFAULT_WIFI_PASSWORD);
   g_deviceUid    = p.getString("device_uid", "");
   g_deviceSecret = p.getString("device_sec", "");
   g_cloudUrl     = p.getString("cloud_url",  "https://api.eptoflow.com");
