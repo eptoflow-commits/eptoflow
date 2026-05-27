@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Update.h>
@@ -35,10 +36,17 @@ public:
     Serial.println("[cloud] client ready");
   }
 
+  // ── HTTPS helper — use this instead of http.begin(url) ───────────────────
+  // setInsecure() skips certificate verification (fine for internal API calls)
+  bool beginSecure(HTTPClient& http, const String& url) {
+    _secureClient.setInsecure();
+    return http.begin(_secureClient, url);
+  }
+
   bool authenticate() {
     HTTPClient http;
     String url = _baseUrl + "/api/device/auth";
-    http.begin(url);
+    beginSecure(http, url);
     http.addHeader("Content-Type", "application/json");
 
     DynamicJsonDocument req(256);
@@ -67,7 +75,7 @@ public:
   bool pollCommand() {
     if (_token.isEmpty()) return false;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/next");
+    beginSecure(http, _baseUrl + "/api/device/next");
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code == 401) { _token = ""; return false; } // re-auth needed
@@ -94,7 +102,7 @@ public:
   bool pushSensor(const String& sensorJson) {
     if (_token.isEmpty()) return false;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/sensor");
+    beginSecure(http, _baseUrl + "/api/device/sensor");
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     int code = http.POST(sensorJson);
@@ -106,7 +114,7 @@ public:
   bool heartbeat(const String& stateJson) {
     if (_token.isEmpty()) return false;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/heartbeat");
+    beginSecure(http, _baseUrl + "/api/device/heartbeat");
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     String body = "{\"relay_state\":" + stateJson + ",\"firmware\":\"" FIRMWARE_VERSION "\"}";
@@ -120,7 +128,7 @@ public:
   bool fetchConfig() {
     if (_token.isEmpty()) return false;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/config");
+    beginSecure(http, _baseUrl + "/api/device/config");
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
@@ -149,7 +157,7 @@ public:
   bool checkOta() {
     if (_token.isEmpty()) return false;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/ota?firmware=" FIRMWARE_VERSION);
+    beginSecure(http, _baseUrl + "/api/device/ota?firmware=" FIRMWARE_VERSION);
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
@@ -169,10 +177,11 @@ public:
   bool isAuthenticated() const { return !_token.isEmpty(); }
 
 private:
-  String _baseUrl;
-  String _deviceUid;
-  String _deviceSecret;
-  String _token;
+  String          _baseUrl;
+  String          _deviceUid;
+  String          _deviceSecret;
+  String          _token;
+  WiFiClientSecure _secureClient;
 
   void saveToken() {
     Preferences p; p.begin(NVS_NS_DEVICE, false);
@@ -189,7 +198,7 @@ private:
   void ack(const char* cmdId, const char* status) {
     if (!cmdId || _token.isEmpty()) return;
     HTTPClient http;
-    http.begin(_baseUrl + "/api/device/ack/" + cmdId);
+    beginSecure(http, _baseUrl + "/api/device/ack/" + cmdId);
     http.addHeader("Authorization", "Bearer " + _token);
     http.addHeader("Content-Type", "application/json");
     String body = String("{\"status\":\"") + status + "\"}";
@@ -257,7 +266,7 @@ private:
   bool performOta(const char* url) {
 #ifdef ARDUINO_ARCH_ESP32
     HTTPClient http;
-    http.begin(url);
+    beginSecure(http, String(url));
     http.addHeader("Authorization", "Bearer " + _token);
     int code = http.GET();
     if (code != 200) { http.end(); return false; }
