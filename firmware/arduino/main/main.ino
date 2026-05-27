@@ -43,7 +43,7 @@ CloudClient      Cloud;
 #define DEFAULT_WIFI_PASSWORD  "eptosi332"
 #define DEFAULT_DEVICE_UID     ""        // ← paste your EPT-XXXXXXXX here
 #define DEFAULT_DEVICE_SECRET  ""        // ← paste your device secret here
-#define DEFAULT_CLOUD_URL      "https://api.eptoflow.com"
+#define DEFAULT_CLOUD_URL      "https://eptoflow-api.onrender.com"
 
 static String g_ssid;
 static String g_password;

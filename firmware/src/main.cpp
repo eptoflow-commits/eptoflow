@@ -72,7 +72,7 @@ void loadProvisioning() {
   g_password     = p.getString("password",   DEFAULT_WIFI_PASSWORD);
   g_deviceUid    = p.getString("device_uid", "");
   g_deviceSecret = p.getString("device_sec", "");
-  g_cloudUrl     = p.getString("cloud_url",  "https://api.eptoflow.com");
+  g_cloudUrl     = p.getString("cloud_url",  "https://eptoflow-api.onrender.com");
   p.end();
   Serial.printf("[prov] uid=%s url=%s\n", g_deviceUid.c_str(), g_cloudUrl.c_str());
 }

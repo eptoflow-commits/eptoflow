@@ -19,7 +19,7 @@ const char* WIFI_SSID      = "eptosi";
 const char* WIFI_PASSWORD  = "eptosi332";
 const char* DEVICE_UID     = "";       // ← e.g. "EPT-A1B2C3D4"
 const char* DEVICE_SECRET  = "";       // ← from dashboard (shown once)
-const char* CLOUD_URL      = "https://api.eptoflow.com";
+const char* CLOUD_URL      = "https://eptoflow-api.onrender.com";
 // ─────────────────────────────────────────────────────────────────────────────
 
 void setup() {
