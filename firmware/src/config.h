@@ -10,13 +10,13 @@
 
 // Relay GPIOs (active LOW — relay energises when pin is LOW)
 #define PIN_RELAY1     13   // Valve 1        (irrigation)
-#define PIN_RELAY2     16   // Valve 2        (irrigation) — moved from GPIO12 (boot strapping pin)
+#define PIN_RELAY2     32   // Valve 2        (irrigation) — GPIO32 (user-wired)
 #define PIN_RELAY3     14   // Valve 3        (irrigation)
 #define PIN_RELAY4     27   // Relay 1 / Motor / Light
 #define PIN_RELAY5     26   // WiFi Status indicator  — auto-managed
 #define PIN_RELAY6     25   // Premium Add-on Valve 1 — locked by default
 #define PIN_RELAY7     33   // Premium Add-on Valve 2 — locked by default
-#define PIN_RELAY8     32   // Premium Add-on Valve 3 — locked by default
+#define PIN_RELAY8     17   // Premium Add-on Valve 3 — locked by default
 
 // ── Relay mapping ───────────────────────────────────────────────────────────
 // Logical key   → physical pin
