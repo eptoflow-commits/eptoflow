@@ -36,11 +36,14 @@ ModbusSensor     Sensor;
 AutomationEngine AutoEngine;
 CloudClient      Cloud;
 
-// ── WiFi credentials ─────────────────────────────────────────────────────────
-// Hardcoded fallback — used when NVS has no stored credentials.
-// Change these to your network details before flashing.
-#define DEFAULT_WIFI_SSID     "eptosi"
-#define DEFAULT_WIFI_PASSWORD "eptosi332"
+// ── Hardcoded fallback credentials ───────────────────────────────────────────
+// Used when NVS has no stored credentials.
+// Replace device_uid / device_secret with values from your Eptoflow dashboard.
+#define DEFAULT_WIFI_SSID      "eptosi"
+#define DEFAULT_WIFI_PASSWORD  "eptosi332"
+#define DEFAULT_DEVICE_UID     ""        // ← paste your EPT-XXXXXXXX here
+#define DEFAULT_DEVICE_SECRET  ""        // ← paste your device secret here
+#define DEFAULT_CLOUD_URL      "https://api.eptoflow.com"
 
 static String g_ssid;
 static String g_password;
@@ -66,9 +69,9 @@ void loadProvisioning() {
   p.begin(NVS_NS_DEVICE, true);
   g_ssid         = p.getString("ssid",       DEFAULT_WIFI_SSID);
   g_password     = p.getString("password",   DEFAULT_WIFI_PASSWORD);
-  g_deviceUid    = p.getString("device_uid", "");
-  g_deviceSecret = p.getString("device_sec", "");
-  g_cloudUrl     = p.getString("cloud_url",  "https://api.eptoflow.com");
+  g_deviceUid    = p.getString("device_uid", DEFAULT_DEVICE_UID);
+  g_deviceSecret = p.getString("device_sec", DEFAULT_DEVICE_SECRET);
+  g_cloudUrl     = p.getString("cloud_url",  DEFAULT_CLOUD_URL);
   p.end();
   Serial.printf("[prov] uid=%s url=%s\n", g_deviceUid.c_str(), g_cloudUrl.c_str());
 }
