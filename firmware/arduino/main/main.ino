@@ -41,8 +41,8 @@ CloudClient      Cloud;
 // Replace device_uid / device_secret with values from your Eptoflow dashboard.
 #define DEFAULT_WIFI_SSID      "eptosi"
 #define DEFAULT_WIFI_PASSWORD  "eptosi332"
-#define DEFAULT_DEVICE_UID     ""        // ← paste your EPT-XXXXXXXX here
-#define DEFAULT_DEVICE_SECRET  ""        // ← paste your device secret here
+#define DEFAULT_DEVICE_UID     "EPT-81AF55-4030D5"
+#define DEFAULT_DEVICE_SECRET  "1c4dc641daab5429d7cd236bab363e46855205c34ba898bb"
 #define DEFAULT_CLOUD_URL      "https://eptoflow-api.onrender.com"
 
 static String g_ssid;
