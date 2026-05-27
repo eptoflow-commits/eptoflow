@@ -35,7 +35,7 @@ public:
   bool read(uint8_t slaveAddr = MODBUS_SLAVE_ADDR) {
     for (int attempt = 0; attempt < MODBUS_RETRIES; attempt++) {
       if (readOnce(slaveAddr)) return true;
-      delay(100);
+      delay(200);
     }
     // Cache miss — keep last valid if not too stale (< 60 s)
     if (_reading.valid && (millis() - _reading.timestamp < 60000)) {
@@ -66,6 +66,57 @@ public:
       _reading.raw_moisture, _reading.raw_temp,
       _reading.valid ? "true" : "false");
     return String(buf);
+  }
+
+  // ── Diagnostic scan — call once from setup() to debug wiring ────────────
+  // Tries slave addresses 1–5 and prints raw bytes to Serial.
+  // Remove/comment out after sensor is confirmed working.
+  void diagScan() {
+    Serial.println("[modbus-diag] === SENSOR SCAN START ===");
+    Serial.printf("[modbus-diag] baud=%d  RO=GPIO%d  DI=GPIO%d  DE=GPIO%d\n",
+      MODBUS_BAUD, PIN_RS485_RO, PIN_RS485_DI, PIN_RS485_DE);
+
+    for (uint8_t addr = 1; addr <= 5; addr++) {
+      Serial.printf("[modbus-diag] trying slave addr %d …\n", addr);
+
+      while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
+
+      uint8_t req[8];
+      buildRequest(req, addr, 0x0000, 2);
+
+      // print the request bytes we're sending
+      Serial.print("[modbus-diag] TX: ");
+      for (int i = 0; i < 8; i++) Serial.printf("%02X ", req[i]);
+      Serial.println();
+
+      digitalWrite(PIN_RS485_DE, HIGH);
+      delayMicroseconds(200);
+      MODBUS_SERIAL.write(req, 8);
+      MODBUS_SERIAL.flush();
+      delayMicroseconds(200);
+      digitalWrite(PIN_RS485_DE, LOW);
+
+      // wait up to 1 s for any bytes at all
+      uint32_t t = millis();
+      uint8_t  resp[32];
+      int      rLen = 0;
+      while (millis() - t < 1000 && rLen < 32) {
+        if (MODBUS_SERIAL.available()) {
+          resp[rLen++] = MODBUS_SERIAL.read();
+        }
+      }
+
+      if (rLen == 0) {
+        Serial.println("[modbus-diag] RX: (nothing — check A/B wiring or power)");
+      } else {
+        Serial.printf("[modbus-diag] RX (%d bytes): ", rLen);
+        for (int i = 0; i < rLen; i++) Serial.printf("%02X ", resp[i]);
+        Serial.println();
+      }
+
+      delay(300);
+    }
+    Serial.println("[modbus-diag] === SENSOR SCAN END ===");
   }
 
 private:
@@ -99,21 +150,18 @@ private:
 
   // ── Single read attempt ──────────────────────────────────────────────────
   bool readOnce(uint8_t slaveAddr) {
-    // Flush rx buffer
     while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
 
     uint8_t req[8];
-    buildRequest(req, slaveAddr, 0x0000, 2); // Read 2 registers starting at 0x0000
+    buildRequest(req, slaveAddr, 0x0000, 2);
 
-    // Enable transmit
     digitalWrite(PIN_RS485_DE, HIGH);
-    delayMicroseconds(100);
+    delayMicroseconds(200);
     MODBUS_SERIAL.write(req, 8);
     MODBUS_SERIAL.flush();
-    delayMicroseconds(100);
-    digitalWrite(PIN_RS485_DE, LOW); // back to receive
+    delayMicroseconds(200);
+    digitalWrite(PIN_RS485_DE, LOW);
 
-    // Wait for response: slave(1) + fc(1) + byteCount(1) + 4 bytes data + CRC(2) = 9
     uint32_t t = millis();
     uint8_t  resp[16];
     int      rLen = 0;
@@ -126,24 +174,20 @@ private:
 
     if (rLen < 9) return false;
 
-    // Validate CRC
-    uint16_t rxCrc  = resp[7] | (resp[8] << 8);
+    uint16_t rxCrc   = resp[7] | (resp[8] << 8);
     uint16_t calcCrc = crc16(resp, 7);
     if (rxCrc != calcCrc) {
       Serial.printf("[modbus] CRC mismatch: got 0x%04X, expected 0x%04X\n", rxCrc, calcCrc);
       return false;
     }
 
-    // Validate slave address, function code, byte count
     if (resp[0] != slaveAddr || resp[1] != 0x03 || resp[2] != 4) return false;
 
-    // Parse registers (big-endian)
     _reading.raw_moisture = (int16_t)((resp[3] << 8) | resp[4]);
     _reading.raw_temp     = (int16_t)((resp[5] << 8) | resp[6]);
     _reading.moisture_pct = _reading.raw_moisture * 0.1f;
     _reading.temp_c       = _reading.raw_temp     * 0.1f;
 
-    // Sanity bounds
     if (_reading.moisture_pct < 0 || _reading.moisture_pct > 100) return false;
     if (_reading.temp_c < -40   || _reading.temp_c > 80)           return false;
 

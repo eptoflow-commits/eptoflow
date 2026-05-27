@@ -130,6 +130,7 @@ void setup() {
 
   Relays.begin();
   Sensor.begin();
+  Sensor.diagScan();   // ← prints raw RS485 bytes; remove after sensor confirmed working
   AutoEngine.begin();
 
   connectWifi();
