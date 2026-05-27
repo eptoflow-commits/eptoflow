@@ -252,3 +252,80 @@ BEGIN
     BEFORE UPDATE ON device_zones
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 END$$;
+
+-- ============================================================================
+-- Relay licensing (premium add-on relays 6, 7, 8)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS relay_licenses (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id    UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id      UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  relay_key    VARCHAR(10) NOT NULL,
+  activated    BOOLEAN     NOT NULL DEFAULT false,
+  activated_by UUID,
+  activated_at TIMESTAMPTZ,
+  amount_paid  NUMERIC(10,2) DEFAULT 0,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(device_id, relay_key)
+);
+CREATE INDEX IF NOT EXISTS idx_relay_lic_device ON relay_licenses(device_id);
+
+-- ============================================================================
+-- Per-valve automation rules
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS automation_rules (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id       UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id         UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  valve_key       VARCHAR(10) NOT NULL,
+  enabled         BOOLEAN     NOT NULL DEFAULT true,
+  mode            VARCHAR(10) NOT NULL DEFAULT 'auto',
+  on_moisture_lt  NUMERIC(5,2),
+  on_temp_gt      NUMERIC(5,2),
+  on_logic        VARCHAR(3)  DEFAULT 'AND',
+  off_moisture_gt NUMERIC(5,2),
+  off_temp_lt     NUMERIC(5,2),
+  off_logic       VARCHAR(3)  DEFAULT 'AND',
+  schedule_start  VARCHAR(5),
+  schedule_end    VARCHAR(5),
+  max_duration_s  INTEGER     NOT NULL DEFAULT 1800,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(device_id, valve_key)
+);
+CREATE INDEX IF NOT EXISTS idx_auto_rules_device ON automation_rules(device_id);
+
+-- ============================================================================
+-- Sensor readings
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sensor_readings (
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id    UUID    NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  sensor_addr  INTEGER NOT NULL DEFAULT 1,
+  moisture_pct NUMERIC(5,2),
+  temp_c       NUMERIC(5,2),
+  raw_moisture INTEGER,
+  raw_temp     INTEGER,
+  read_ok      BOOLEAN NOT NULL DEFAULT true,
+  recorded_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sensor_device_time ON sensor_readings(device_id, recorded_at DESC);
+
+-- ============================================================================
+-- Sensor alerts
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sensor_alerts (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id    UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id      UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  alert_type   VARCHAR(30) NOT NULL,
+  valve_key    VARCHAR(10),
+  threshold    NUMERIC(5,2),
+  actual_value NUMERIC(5,2),
+  resolved     BOOLEAN     NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_sensor_alerts_device ON sensor_alerts(device_id, resolved, created_at DESC);

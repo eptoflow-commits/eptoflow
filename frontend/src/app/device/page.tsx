@@ -4,10 +4,73 @@ import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import VoiceButton from '@/components/VoiceButton';
+import RelayCard from '@/components/RelayCard';
+import SensorGraph from '@/components/SensorGraph';
+import AutomationRuleBuilder from '@/components/AutomationRuleBuilder';
 import { api } from '@/lib/api';
-import type { Command, Device, Plan } from '@/lib/types';
+import type { Command, Device, Plan, Subscription } from '@/lib/types';
 
 type Detail = { device: Device; last_status: any; recent_commands: Command[]; plan: Plan };
+
+// ── Sensor alert sub-component ────────────────────────────────────────────────
+type SensorAlert = {
+  id: string; alert_type: string; valve_key: string | null;
+  threshold: number | null; actual_value: number | null; created_at: string;
+};
+
+function SensorAlerts({ deviceId }: { deviceId: string }) {
+  const [alerts, setAlerts] = useState<SensorAlert[]>([]);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    api<{ alerts: SensorAlert[] }>(`/api/sensors/${deviceId}/alerts`)
+      .then(r => setAlerts(r.alerts))
+      .catch(() => {});
+  }, [deviceId]);
+
+  if (alerts.length === 0) return null;
+
+  const alertMeta = (type: string) => {
+    if (type === 'moisture_low')   return { icon:'💧', color:'#0284c7', bg:'#e0f2fe', label:'Low moisture' };
+    if (type === 'moisture_high')  return { icon:'🌊', color:'#0284c7', bg:'#e0f2fe', label:'High moisture' };
+    if (type === 'temp_high')      return { icon:'🌡️', color:'#dc2626', bg:'#fef2f2', label:'High temperature' };
+    if (type === 'sensor_offline') return { icon:'📡', color:'#9ca3af', bg:'#f3f4f6', label:'Sensor offline' };
+    return { icon:'⚠️', color:'#d97706', bg:'#fefce8', label: type };
+  };
+
+  return (
+    <div style={{
+      background:'#fff', borderRadius:16, padding:'14px 16px',
+      border:'1.5px solid #fef08a', boxShadow:'0 2px 8px rgba(234,179,8,0.1)',
+    }}>
+      <div style={{ fontWeight:700, fontSize:13, color:'#1f2937', marginBottom:10 }}>🚨 Active Alerts</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {alerts.map(a => {
+          const m = alertMeta(a.alert_type);
+          return (
+            <div key={a.id} style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'9px 12px', borderRadius:10, background:m.bg,
+            }}>
+              <span style={{ fontSize:18 }}>{m.icon}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:m.color }}>{m.label}</div>
+                {a.actual_value != null && (
+                  <div style={{ fontSize:11, color:'#6b7280' }}>
+                    Value: {a.actual_value}{a.threshold != null ? ` / threshold: ${a.threshold}` : ''}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize:10, color:'#9ca3af' }}>
+                {new Date(a.created_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const DURATION_PRESETS = [
   { l: '5m',  s: 300 }, { l: '10m', s: 600 },
@@ -270,7 +333,14 @@ function DeviceContent({ id }: { id: string }) {
   const [err, setErr]               = useState<string | null>(null);
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [sub, setSub]               = useState<Subscription | null>(null);
+  const [zoneNames, setZoneNames]   = useState<Record<string, string>>({});
+  const [availableValves, setAvailableValves] = useState<string[]>(['valve1','valve2','valve3','relay1']);
+  const [activeTab, setActiveTab]   = useState<'classic' | 'relays' | 'sensors' | 'automation'>('relays');
+  const [cmdTick, setCmdTick]       = useState(0);
   const timerRef = useRef<any>(null);
+
+  const isPremium = sub?.plan_name === 'premium';
 
   const load = useCallback(async () => {
     try {
@@ -288,6 +358,19 @@ function DeviceContent({ id }: { id: string }) {
       });
     } catch (e: any) { setErr(e.message || 'Failed to load device'); }
   }, [id]);
+
+  // Load subscription, zone names, relay licenses
+  useEffect(() => {
+    api<{ subscription: Subscription | null }>('/api/subscriptions/me')
+      .then(s => setSub(s.subscription)).catch(() => {});
+    api<{ zones: Record<string, string> }>(`/api/devices/${id}/zones`)
+      .then(z => setZoneNames(z.zones ?? {})).catch(() => {});
+    api<{ licenses: Array<{ relay_key: string; activated: boolean }> }>(`/api/relays/${id}/licenses`)
+      .then(r => {
+        const extra = r.licenses.filter(l => l.activated).map(l => l.relay_key);
+        setAvailableValves(['valve1','valve2','valve3','relay1', ...extra]);
+      }).catch(() => {});
+  }, [id, cmdTick]);
 
   useEffect(() => {
     load();
@@ -442,6 +525,65 @@ function DeviceContent({ id }: { id: string }) {
       {plan.hasVoice && (
         <div style={{ marginBottom:16 }}>
           <VoiceButton deviceId={device.id} disabled={!isOnline} onCommand={load}/>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          ── Advanced tabs: Relays · Sensors · Automation ──
+          ════════════════════════════════════════════════════════ */}
+      <div style={{ marginTop:8, marginBottom:12 }}>
+        <div style={{
+          display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:5,
+          background:'#f1f5f9', borderRadius:14, padding:4,
+        }}>
+          {([
+            { key:'relays',     label:'🎛️ Relays'    },
+            { key:'sensors',    label:'📊 Sensors'   },
+            { key:'automation', label:'🤖 Auto'      },
+          ] as const).map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              style={{
+                padding:'8px 0', borderRadius:10, border:'none', cursor:'pointer',
+                background: activeTab === t.key ? '#fff' : 'transparent',
+                color: activeTab === t.key ? '#1f2937' : '#64748b',
+                fontWeight:700, fontSize:12,
+                boxShadow: activeTab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                transition:'all 0.15s',
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Relays tab ── */}
+      {activeTab === 'relays' && (
+        <div style={{ marginBottom:16 }}>
+          <RelayCard
+            deviceId={id}
+            isPremium={isPremium}
+            zoneNames={zoneNames}
+            onCommand={() => { load(); setCmdTick(t => t + 1); }}
+          />
+        </div>
+      )}
+
+      {/* ── Sensors tab ── */}
+      {activeTab === 'sensors' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:16 }}>
+          <SensorGraph deviceId={id} />
+          <SensorAlerts deviceId={id} />
+        </div>
+      )}
+
+      {/* ── Automation tab ── */}
+      {activeTab === 'automation' && (
+        <div style={{ marginBottom:16 }}>
+          <AutomationRuleBuilder
+            deviceId={id}
+            availableValves={availableValves}
+            zoneNames={zoneNames}
+          />
         </div>
       )}
     </AppShell>

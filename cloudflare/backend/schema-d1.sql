@@ -174,3 +174,84 @@ CREATE TABLE IF NOT EXISTS device_zones (
   UNIQUE(device_id, zone_key)
 );
 CREATE INDEX IF NOT EXISTS idx_device_zones_device ON device_zones(device_id);
+
+-- ============================================================================
+-- Relay licensing (premium add-on relays 6, 7, 8)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS relay_licenses (
+  id          TEXT PRIMARY KEY,
+  device_id   TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  relay_key   TEXT NOT NULL,              -- 'relay6' | 'relay7' | 'relay8'
+  activated   INTEGER NOT NULL DEFAULT 0, -- 0=locked, 1=active
+  activated_by TEXT,                      -- admin user id
+  activated_at TEXT,
+  amount_paid  REAL DEFAULT 0,
+  notes        TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(device_id, relay_key)
+);
+CREATE INDEX IF NOT EXISTS idx_relay_lic_device ON relay_licenses(device_id);
+
+-- ============================================================================
+-- Per-valve automation rules
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS automation_rules (
+  id              TEXT PRIMARY KEY,
+  device_id       TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id         TEXT NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  valve_key       TEXT NOT NULL,    -- 'valve1' | 'valve2' | 'valve3' | 'relay6' | 'relay7' | 'relay8'
+  enabled         INTEGER NOT NULL DEFAULT 1,
+  mode            TEXT NOT NULL DEFAULT 'auto',  -- 'manual' | 'auto'
+  -- ON condition
+  on_moisture_lt  REAL,             -- turn ON if moisture < X %
+  on_temp_gt      REAL,             -- turn ON if temperature > X °C
+  on_logic        TEXT DEFAULT 'AND', -- 'AND' | 'OR' (when both set)
+  -- OFF condition
+  off_moisture_gt REAL,             -- turn OFF if moisture > X %
+  off_temp_lt     REAL,             -- turn OFF if temperature < X °C
+  off_logic       TEXT DEFAULT 'AND',
+  -- Optional scheduled window (only run automation within this window)
+  schedule_start  TEXT,             -- 'HH:MM' UTC
+  schedule_end    TEXT,             -- 'HH:MM' UTC
+  -- Max run duration safety (seconds, 0 = unlimited)
+  max_duration_s  INTEGER NOT NULL DEFAULT 1800,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(device_id, valve_key)
+);
+CREATE INDEX IF NOT EXISTS idx_auto_rules_device ON automation_rules(device_id);
+
+-- ============================================================================
+-- Sensor readings (RS485 soil moisture + temperature)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sensor_readings (
+  id           TEXT PRIMARY KEY,
+  device_id    TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  sensor_addr  INTEGER NOT NULL DEFAULT 1, -- Modbus slave address
+  moisture_pct REAL,
+  temp_c       REAL,
+  raw_moisture INTEGER,
+  raw_temp     INTEGER,
+  read_ok      INTEGER NOT NULL DEFAULT 1, -- 1=valid, 0=timeout/error
+  recorded_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sensor_device_time ON sensor_readings(device_id, recorded_at DESC);
+
+-- ============================================================================
+-- Sensor alerts
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sensor_alerts (
+  id           TEXT PRIMARY KEY,
+  device_id    TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  alert_type   TEXT NOT NULL,  -- 'sensor_offline' | 'moisture_low' | 'moisture_high' | 'temp_high'
+  valve_key    TEXT,
+  threshold    REAL,
+  actual_value REAL,
+  resolved     INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sensor_alerts_device ON sensor_alerts(device_id, resolved, created_at DESC);

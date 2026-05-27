@@ -7,8 +7,12 @@ import { isSubscriptionActive, getLatestSubscription } from './subscription.serv
 export const COMMAND_TYPES = new Set([
   'valve_on', 'valve_off',
   'relay_on', 'relay_off',
-  'water_for',      // payload: { target: 'valve1', duration: seconds }
+  'water_for',          // payload: { target: 'valve1', duration: seconds }
   'stop_all',
+  'activate_relay',     // payload: { relay_key, activated }
+  'sync_automation',    // payload: { valve_key, rule }
+  'push_config',        // payload: { licenses, rules, zones }
+  'reboot',             // payload: {}
 ]);
 
 export const SAFE_MAX_DURATION = 30 * 60; // 30 minutes absolute ceiling

@@ -62,6 +62,8 @@ import alexaRoutes from './routes/alexa.routes.js';
 import googleAssistantRoutes from './routes/googleAssistant.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import relaysRoutes from './routes/relays.routes.js';
+import sensorsRoutes from './routes/sensors.routes.js';
 
 const app = express();
 
@@ -96,6 +98,10 @@ app.use('/api/notifications', notificationsRoutes);
 
 // ESP32 device-facing API
 app.use('/api/device', deviceApiRoutes);
+
+// Relay licensing + automation + sensor data
+app.use('/api/relays',   relaysRoutes);
+app.use('/api/sensors',  sensorsRoutes);
 
 // Admin
 app.use('/api/admin', adminRoutes);
