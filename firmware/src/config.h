@@ -10,7 +10,7 @@
 
 // Relay GPIOs (active LOW — relay energises when pin is LOW)
 #define PIN_RELAY1     13   // Valve 1        (irrigation)
-#define PIN_RELAY2     12   // Valve 2        (irrigation)
+#define PIN_RELAY2     16   // Valve 2        (irrigation) — moved from GPIO12 (boot strapping pin)
 #define PIN_RELAY3     14   // Valve 3        (irrigation)
 #define PIN_RELAY4     27   // Relay 1 / Motor / Light
 #define PIN_RELAY5     26   // WiFi Status indicator  — auto-managed
