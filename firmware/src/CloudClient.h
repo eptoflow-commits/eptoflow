@@ -4,6 +4,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <Update.h>
 #include "config.h"
 #include "RelayManager.h"
 #include "AutomationEngine.h"
@@ -255,7 +256,6 @@ private:
 
   bool performOta(const char* url) {
 #ifdef ARDUINO_ARCH_ESP32
-    #include <Update.h>
     HTTPClient http;
     http.begin(url);
     http.addHeader("Authorization", "Bearer " + _token);

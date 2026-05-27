@@ -114,7 +114,13 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n[boot] Eptoflow v" FIRMWARE_VERSION);
 
-  esp_task_wdt_init(WDT_TIMEOUT_S, true);
+  // Watchdog — ESP32 Arduino core v3.x uses a config struct
+  const esp_task_wdt_config_t wdt_cfg = {
+    .timeout_ms     = WDT_TIMEOUT_S * 1000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+    .trigger_panic  = true,
+  };
+  esp_task_wdt_reconfigure(&wdt_cfg);
   esp_task_wdt_add(NULL);
 
   loadProvisioning();
