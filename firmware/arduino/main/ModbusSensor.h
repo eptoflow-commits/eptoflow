@@ -68,55 +68,61 @@ public:
     return String(buf);
   }
 
-  // ── Diagnostic scan — call once from setup() to debug wiring ────────────
-  // Tries slave addresses 1–5 and prints raw bytes to Serial.
+  // ── Diagnostic scan — tries 3 baud rates × 5 slave addresses ────────────
   // Remove/comment out after sensor is confirmed working.
   void diagScan() {
     Serial.println("[modbus-diag] === SENSOR SCAN START ===");
-    Serial.printf("[modbus-diag] baud=%d  RO=GPIO%d  DI=GPIO%d  DE=GPIO%d\n",
-      MODBUS_BAUD, PIN_RS485_RO, PIN_RS485_DI, PIN_RS485_DE);
+    Serial.printf("[modbus-diag] RO=GPIO%d  DI=GPIO%d  DE=GPIO%d\n",
+      PIN_RS485_RO, PIN_RS485_DI, PIN_RS485_DE);
+    Serial.println("[modbus-diag] If all RX=(nothing): swap A and B wires on MAX485");
 
-    for (uint8_t addr = 1; addr <= 5; addr++) {
-      Serial.printf("[modbus-diag] trying slave addr %d …\n", addr);
+    const uint32_t bauds[] = { 9600, 4800, 19200 };
+    for (uint32_t baud : bauds) {
+      Serial.printf("\n[modbus-diag] --- baud %lu ---\n", baud);
+      MODBUS_SERIAL.end();
+      delay(50);
+      MODBUS_SERIAL.begin(baud, SERIAL_8N1, PIN_RS485_RO, PIN_RS485_DI);
+      delay(50);
 
-      while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
+      for (uint8_t addr = 1; addr <= 5; addr++) {
+        while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
 
-      uint8_t req[8];
-      buildRequest(req, addr, 0x0000, 2);
+        uint8_t req[8];
+        buildRequest(req, addr, 0x0000, 2);
 
-      // print the request bytes we're sending
-      Serial.print("[modbus-diag] TX: ");
-      for (int i = 0; i < 8; i++) Serial.printf("%02X ", req[i]);
-      Serial.println();
-
-      digitalWrite(PIN_RS485_DE, HIGH);
-      delayMicroseconds(200);
-      MODBUS_SERIAL.write(req, 8);
-      MODBUS_SERIAL.flush();
-      delayMicroseconds(200);
-      digitalWrite(PIN_RS485_DE, LOW);
-
-      // wait up to 1 s for any bytes at all
-      uint32_t t = millis();
-      uint8_t  resp[32];
-      int      rLen = 0;
-      while (millis() - t < 1000 && rLen < 32) {
-        if (MODBUS_SERIAL.available()) {
-          resp[rLen++] = MODBUS_SERIAL.read();
-        }
-      }
-
-      if (rLen == 0) {
-        Serial.println("[modbus-diag] RX: (nothing — check A/B wiring or power)");
-      } else {
-        Serial.printf("[modbus-diag] RX (%d bytes): ", rLen);
-        for (int i = 0; i < rLen; i++) Serial.printf("%02X ", resp[i]);
+        Serial.printf("[modbus-diag] addr=%d TX: ", addr);
+        for (int i = 0; i < 8; i++) Serial.printf("%02X ", req[i]);
         Serial.println();
-      }
 
-      delay(300);
+        digitalWrite(PIN_RS485_DE, HIGH);
+        delayMicroseconds(500);
+        MODBUS_SERIAL.write(req, 8);
+        MODBUS_SERIAL.flush();
+        delayMicroseconds(500);
+        digitalWrite(PIN_RS485_DE, LOW);
+
+        uint32_t t = millis();
+        uint8_t  resp[32];
+        int      rLen = 0;
+        while (millis() - t < 1500 && rLen < 32) {
+          if (MODBUS_SERIAL.available()) resp[rLen++] = MODBUS_SERIAL.read();
+        }
+
+        if (rLen == 0) {
+          Serial.println("[modbus-diag]        RX: (nothing)");
+        } else {
+          Serial.printf("[modbus-diag]        RX (%d bytes): ", rLen);
+          for (int i = 0; i < rLen; i++) Serial.printf("%02X ", resp[i]);
+          Serial.println(" ← FOUND SENSOR!");
+        }
+        delay(200);
+      }
     }
-    Serial.println("[modbus-diag] === SENSOR SCAN END ===");
+
+    // Restore normal baud
+    MODBUS_SERIAL.end();
+    MODBUS_SERIAL.begin(MODBUS_BAUD, SERIAL_8N1, PIN_RS485_RO, PIN_RS485_DI);
+    Serial.println("\n[modbus-diag] === SCAN END ===");
   }
 
 private:
@@ -149,6 +155,8 @@ private:
   }
 
   // ── Single read attempt ──────────────────────────────────────────────────
+  // Datasheet (RS-WS-N01-TR-1) response: addr+fc+byteCount(6)+6data+2CRC = 11 bytes
+  // byteCount = 0x06 (6 bytes = 3 registers), moisture at [3:4], temp at [5:6]
   bool readOnce(uint8_t slaveAddr) {
     while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
 
@@ -156,33 +164,46 @@ private:
     buildRequest(req, slaveAddr, 0x0000, 2);
 
     digitalWrite(PIN_RS485_DE, HIGH);
-    delayMicroseconds(200);
+    delayMicroseconds(500);
     MODBUS_SERIAL.write(req, 8);
     MODBUS_SERIAL.flush();
-    delayMicroseconds(200);
+    delayMicroseconds(500);
     digitalWrite(PIN_RS485_DE, LOW);
 
+    // Wait for up to 11 bytes (byteCount=6 response) or 9 bytes (byteCount=4)
     uint32_t t = millis();
     uint8_t  resp[16];
     int      rLen = 0;
     while (millis() - t < MODBUS_TIMEOUT_MS) {
       if (MODBUS_SERIAL.available()) {
         resp[rLen++] = MODBUS_SERIAL.read();
-        if (rLen >= 9) break;
+        if (rLen >= 3) {
+          // Once we know byteCount, wait for exactly that many bytes + 2 CRC
+          int expected = 3 + resp[2] + 2;
+          if (rLen >= expected) break;
+        }
       }
     }
 
+    // Need at least 9 bytes (minimum valid response)
     if (rLen < 9) return false;
 
-    uint16_t rxCrc   = resp[7] | (resp[8] << 8);
-    uint16_t calcCrc = crc16(resp, 7);
+    // byteCount tells us where CRC starts
+    int dataLen = resp[2];           // number of data bytes (4 or 6)
+    int crcIdx  = 3 + dataLen;       // index of CRC low byte
+    if (rLen < crcIdx + 2) return false;
+
+    uint16_t rxCrc   = resp[crcIdx] | (resp[crcIdx + 1] << 8);
+    uint16_t calcCrc = crc16(resp, crcIdx);
     if (rxCrc != calcCrc) {
       Serial.printf("[modbus] CRC mismatch: got 0x%04X, expected 0x%04X\n", rxCrc, calcCrc);
       return false;
     }
 
-    if (resp[0] != slaveAddr || resp[1] != 0x03 || resp[2] != 4) return false;
+    // Validate address, function code, and that we have at least 4 data bytes
+    if (resp[0] != slaveAddr || resp[1] != 0x03 || dataLen < 4) return false;
 
+    // Moisture at bytes 3-4, temperature at bytes 5-6 (per datasheet)
     _reading.raw_moisture = (int16_t)((resp[3] << 8) | resp[4]);
     _reading.raw_temp     = (int16_t)((resp[5] << 8) | resp[6]);
     _reading.moisture_pct = _reading.raw_moisture * 0.1f;

@@ -30,7 +30,7 @@
 // "relay8"      → PIN_RELAY8   (premium, NVS-activated)
 
 // ── RS485 / Modbus ──────────────────────────────────────────────────────────
-#define MODBUS_BAUD        9600
+#define MODBUS_BAUD        4800   // RS-WS-N01-TR-1 factory default
 #define MODBUS_SERIAL      Serial2
 #define MODBUS_SLAVE_ADDR  1     // default slave address of sensor
 #define MODBUS_TIMEOUT_MS  500
