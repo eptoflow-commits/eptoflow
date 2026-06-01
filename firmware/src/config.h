@@ -4,9 +4,10 @@
 // ============================================================================
 
 // ── GPIO pin assignments ────────────────────────────────────────────────────
-#define PIN_RS485_RO   21   // RS485 Receive Output  → ESP32 RX
-#define PIN_RS485_DI   18   // RS485 Data Input       ← ESP32 TX
-#define PIN_RS485_DE   19   // RS485 Driver Enable (tied with RE)
+#define PIN_RS485_RO   21   // RS485 Receive Output  → ESP32 RX  (MAX485 RO)
+#define PIN_RS485_DI   18   // RS485 Data Input       ← ESP32 TX  (MAX485 DI)
+#define PIN_RS485_DE   22   // RS485 Driver Enable               (MAX485 DE)
+#define PIN_RS485_RE   19   // RS485 Receiver Enable             (MAX485 RE)
 
 // Relay GPIOs (active LOW — relay energises when pin is LOW)
 #define PIN_RELAY1     13   // Valve 1        (irrigation)
@@ -30,7 +31,7 @@
 // "relay8"      → PIN_RELAY8   (premium, NVS-activated)
 
 // ── RS485 / Modbus ──────────────────────────────────────────────────────────
-#define MODBUS_BAUD        4800   // RS-WS-N01-TR-1 factory default
+#define MODBUS_BAUD        4800   // sensor baud rate (confirmed working)
 #define MODBUS_SERIAL      Serial2
 #define MODBUS_SLAVE_ADDR  1     // default slave address of sensor
 #define MODBUS_TIMEOUT_MS  500

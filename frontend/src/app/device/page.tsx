@@ -327,6 +327,150 @@ function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, on
   );
 }
 
+/* ── Live Sensor Panel ───────────────────────────────────────────── */
+function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium: boolean }) {
+  const [moisture, setMoisture] = useState<number | null>(null);
+  const [temp,     setTemp]     = useState<number | null>(null);
+  const [age,      setAge]      = useState<string>('');
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const r = await api<{ latest: { moisture_pct: number | null; temp_c: number | null; recorded_at: string } | null }>(
+          `/api/sensors/${deviceId}`
+        );
+        if (r.latest) {
+          setMoisture(r.latest.moisture_pct);
+          setTemp(r.latest.temp_c);
+          const secs = Math.floor((Date.now() - new Date(r.latest.recorded_at).getTime()) / 1000);
+          setAge(secs < 60 ? 'just now' : `${Math.floor(secs/60)}m ago`);
+        }
+      } catch {}
+    };
+    fetch();
+    const iv = setInterval(fetch, 10000);
+    return () => clearInterval(iv);
+  }, [deviceId]);
+
+  const moistureColor = moisture == null ? '#9ca3af' : moisture < 30 ? '#ef4444' : moisture < 60 ? '#f59e0b' : '#10b981';
+  const tempColor     = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#3b82f6';
+  const moistureLabel = moisture == null ? '—' : moisture < 30 ? 'Dry' : moisture < 60 ? 'Moderate' : 'Good';
+  const tempLabel     = temp == null ? '—' : temp > 38 ? 'Hot' : temp > 30 ? 'Warm' : 'Cool';
+
+  return (
+    <div style={{
+      borderRadius: 18, overflow: 'hidden', marginBottom: 16,
+      border: '1.5px solid #e0f2fe',
+      boxShadow: '0 4px 20px rgba(59,130,246,0.08)',
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg,#0ea5e9,#0284c7)',
+        padding: '12px 16px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div style={{ color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: '-0.01em' }}>
+          🌱 Soil Sensor
+        </div>
+        {age && <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10 }}>Updated {age}</div>}
+      </div>
+
+      {/* Two gauges */}
+      <div style={{ background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+
+        {/* Moisture */}
+        <div style={{ padding: '18px 16px', borderRight: '1px solid #f1f5f9' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            💧 Moisture
+          </div>
+          {/* Arc gauge */}
+          <div style={{ position: 'relative', width: 80, height: 48, margin: '0 auto 8px' }}>
+            <svg viewBox="0 0 80 48" style={{ width: '100%', height: '100%' }}>
+              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round"/>
+              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke={moistureColor}
+                strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={`${(moisture ?? 0) * 1.068} 200`}
+                style={{ transition: 'stroke-dasharray 1.2s ease, stroke 0.5s' }}/>
+            </svg>
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              textAlign: 'center', fontWeight: 900, fontSize: 18, color: moistureColor,
+              lineHeight: 1, transition: 'color 0.5s',
+            }}>
+              {moisture == null ? '—' : `${moisture}%`}
+            </div>
+          </div>
+          {/* Bar */}
+          <div style={{ height: 6, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{
+              height: '100%', borderRadius: 4,
+              width: `${moisture ?? 0}%`,
+              background: `linear-gradient(90deg,${moistureColor}88,${moistureColor})`,
+              boxShadow: `0 0 6px ${moistureColor}66`,
+              transition: 'width 1.2s ease, background 0.5s',
+            }}/>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: moistureColor }}>
+            {moistureLabel}
+          </div>
+        </div>
+
+        {/* Temperature */}
+        <div style={{ padding: '18px 16px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            🌡️ Temperature
+          </div>
+          {/* Thermometer visual */}
+          <div style={{ position: 'relative', width: 80, height: 48, margin: '0 auto 8px' }}>
+            <svg viewBox="0 0 80 48" style={{ width: '100%', height: '100%' }}>
+              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round"/>
+              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke={tempColor}
+                strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={`${Math.min(((temp ?? 0) / 50) * 100, 100) * 1.068} 200`}
+                style={{ transition: 'stroke-dasharray 1.2s ease, stroke 0.5s' }}/>
+            </svg>
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              textAlign: 'center', fontWeight: 900, fontSize: 17, color: tempColor,
+              lineHeight: 1, transition: 'color 0.5s',
+            }}>
+              {temp == null ? '—' : `${temp}°`}
+            </div>
+          </div>
+          {/* Bar */}
+          <div style={{ height: 6, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{
+              height: '100%', borderRadius: 4,
+              width: `${Math.min(((temp ?? 0) / 50) * 100, 100)}%`,
+              background: `linear-gradient(90deg,${tempColor}88,${tempColor})`,
+              boxShadow: `0 0 6px ${tempColor}66`,
+              transition: 'width 1.2s ease, background 0.5s',
+            }}/>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: tempColor }}>
+            {tempLabel}
+          </div>
+        </div>
+      </div>
+
+      {/* Premium automation prompt */}
+      {!isPremium && (
+        <div style={{
+          background: 'linear-gradient(135deg,#fefce8,#fef9c3)',
+          padding: '10px 16px', borderTop: '1px solid #fde68a',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>⚡</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>Auto-water by sensor</div>
+            <div style={{ fontSize: 10, color: '#b45309' }}>Upgrade to Premium to automate valves by moisture &amp; temp</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Device content ──────────────────────────────────────────────── */
 function DeviceContent({ id }: { id: string }) {
   const [data, setData]             = useState<Detail | null>(null);
@@ -391,7 +535,6 @@ function DeviceContent({ id }: { id: string }) {
   if (!plan) return <AppShell><div className="card text-red-600 text-sm">⚠️ Device plan not configured.</div></AppShell>;
 
   const isOnline = device.status === 'online';
-  const moisture = last_status?.moisture_value ?? null;
   const outputs: string[] = plan.allowedOutputs ?? [];
 
   const isOn = (key: string) =>
@@ -459,32 +602,9 @@ function DeviceContent({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* ── Moisture ── */}
+      {/* ── Live Sensor Panel ── */}
       {plan.hasMoisture && (
-        <div style={{ background:'linear-gradient(135deg,#eff6ff,#dbeafe)', borderRadius:16,
-          border:'1.5px solid #bfdbfe', padding:'14px 18px', marginBottom:16,
-          boxShadow:'0 2px 12px rgba(59,130,246,0.1)' }}>
-          <div style={{ fontSize:11, color:'#3b82f6', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>
-            🌱 Soil Moisture
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-            <div style={{ fontSize:38, fontWeight:900, color:'#1d4ed8', lineHeight:1 }}>
-              {moisture==null ? '—' : `${moisture}%`}
-            </div>
-            {moisture!=null && (
-              <div style={{ flex:1 }}>
-                <div style={{ height:10, background:'#bfdbfe', borderRadius:6, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${moisture}%`, borderRadius:6,
-                    background:'linear-gradient(90deg,#3b82f6,#60a5fa)',
-                    boxShadow:'0 0 8px rgba(59,130,246,0.4)', transition:'width 1s ease' }}/>
-                </div>
-                <div style={{ fontSize:11, color:'#60a5fa', marginTop:4 }}>
-                  {moisture<30 ? '🔴 Dry — needs water' : moisture<65 ? '🟡 Moderate' : '🟢 Well watered'}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <LiveSensorPanel deviceId={id} isPremium={isPremium} />
       )}
 
       {/* ── Output controls ── */}
@@ -579,11 +699,46 @@ function DeviceContent({ id }: { id: string }) {
       {/* ── Automation tab ── */}
       {activeTab === 'automation' && (
         <div style={{ marginBottom:16 }}>
-          <AutomationRuleBuilder
-            deviceId={id}
-            availableValves={availableValves}
-            zoneNames={zoneNames}
-          />
+          {isPremium ? (
+            <AutomationRuleBuilder
+              deviceId={id}
+              availableValves={availableValves}
+              zoneNames={zoneNames}
+            />
+          ) : (
+            <div style={{
+              background:'linear-gradient(135deg,#fdf4ff,#fae8ff)',
+              borderRadius:18, padding:'28px 20px', textAlign:'center',
+              border:'1.5px solid #e9d5ff',
+              boxShadow:'0 4px 20px rgba(168,85,247,0.1)',
+            }}>
+              <div style={{ fontSize:36, marginBottom:10 }}>🤖</div>
+              <div style={{ fontWeight:800, fontSize:16, color:'#581c87', marginBottom:6 }}>
+                Smart Automation
+              </div>
+              <div style={{ fontSize:13, color:'#7c3aed', marginBottom:18, lineHeight:1.5 }}>
+                Auto-water your plants based on real-time<br/>soil moisture and temperature readings.
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20, textAlign:'left' }}>
+                {[
+                  '💧 Turn valve ON when moisture drops below 30%',
+                  '🌡️ Turn valve OFF when temperature drops below 28°C',
+                  '⏰ Set time windows + max run duration',
+                  '🔄 Works offline — rules run on device',
+                ].map(f => (
+                  <div key={f} style={{ fontSize:12, color:'#6d28d9' }}>{f}</div>
+                ))}
+              </div>
+              <a href="/subscription" style={{
+                display:'inline-block', padding:'12px 28px', borderRadius:12,
+                background:'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                color:'#fff', fontWeight:800, fontSize:14, textDecoration:'none',
+                boxShadow:'0 4px 18px rgba(124,58,237,0.4)',
+              }}>
+                ⚡ Upgrade to Premium
+              </a>
+            </div>
+          )}
         </div>
       )}
     </AppShell>

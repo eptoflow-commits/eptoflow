@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Update.h>
+#include <esp_task_wdt.h>
 #include "config.h"
 #include "RelayManager.h"
 #include "AutomationEngine.h"
@@ -82,7 +83,11 @@ public:
 
       if (attempt < AUTH_RETRIES) {
         Serial.printf("[cloud] retrying in %d s…\n", AUTH_RETRY_MS / 1000);
-        delay(AUTH_RETRY_MS);
+        // Reset watchdog during long retry wait to prevent reboot
+        for (int i = 0; i < AUTH_RETRY_MS / 1000; i++) {
+          esp_task_wdt_reset();
+          delay(1000);
+        }
       }
     }
     Serial.println("[cloud] auth FAILED after all retries");

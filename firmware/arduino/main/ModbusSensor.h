@@ -5,21 +5,24 @@
 // ============================================================================
 // ModbusSensor — RS485 RTU soil moisture + temperature sensor
 //
-// Typical sensor register map (most Chinese RS485 sensors):
-//   0x0000 = Moisture  (×0.1 %)
-//   0x0001 = Temperature (×0.1 °C, signed)
+// Wiring:
+//   MAX485 RO  → ESP32 GPIO 21  (UART2 RX)
+//   MAX485 DI  → ESP32 GPIO 18  (UART2 TX)
+//   MAX485 DE  → ESP32 GPIO 22  (driver enable,   HIGH=TX)
+//   MAX485 RE  → ESP32 GPIO 19  (receiver enable, LOW=RX)
 //
-// Protocol: Modbus RTU, Function 0x03 (Read Holding Registers)
-// CRC: CRC-16/Modbus (poly 0x8005, init 0xFFFF)
+// Protocol: Modbus RTU, FC=0x03, addr=1, reg=0x0000, count=2
+// Request:  01 03 00 00 00 02 C4 0B
+// Response: 01 03 04 MM MM TT TT CRC_L CRC_H  (9 bytes)
+//   MM MM = moisture × 0.1 %
+//   TT TT = temperature × 0.1 °C (signed)
 // ============================================================================
 
 struct SensorReading {
-  float   moisture_pct = -1.0f;  // 0.0 – 100.0, -1 = invalid
-  float   temp_c       = -99.0f; // °C, -99 = invalid
-  int16_t raw_moisture =  0;
-  int16_t raw_temp     =  0;
-  bool    valid        = false;
-  uint32_t timestamp   = 0;      // millis() of last successful read
+  float    moisture_pct = -1.0f;   // 0–100 %, -1 = invalid
+  float    temp_c       = -99.0f;  // °C,      -99 = invalid
+  bool     valid        = false;
+  uint32_t timestamp    = 0;
 };
 
 class ModbusSensor {
@@ -27,17 +30,17 @@ public:
   void begin() {
     MODBUS_SERIAL.begin(MODBUS_BAUD, SERIAL_8N1, PIN_RS485_RO, PIN_RS485_DI);
     pinMode(PIN_RS485_DE, OUTPUT);
-    digitalWrite(PIN_RS485_DE, LOW); // receive mode
-    Serial.println("[modbus] RS485 sensor initialised");
+    pinMode(PIN_RS485_RE, OUTPUT);
+    setRX();
+    Serial.printf("[modbus] RS485 ready — RO=%d DI=%d DE=%d RE=%d baud=%d\n",
+      PIN_RS485_RO, PIN_RS485_DI, PIN_RS485_DE, PIN_RS485_RE, MODBUS_BAUD);
   }
 
-  // ── Read sensor (blocking, with retries) ────────────────────────────────
   bool read(uint8_t slaveAddr = MODBUS_SLAVE_ADDR) {
     for (int attempt = 0; attempt < MODBUS_RETRIES; attempt++) {
       if (readOnce(slaveAddr)) return true;
       delay(200);
     }
-    // Cache miss — keep last valid if not too stale (< 60 s)
     if (_reading.valid && (millis() - _reading.timestamp < 60000)) {
       Serial.println("[modbus] using cached reading");
       return true;
@@ -49,165 +52,96 @@ public:
 
   const SensorReading& latest() const { return _reading; }
 
-  // ── Check if sensor is responsive ───────────────────────────────────────
   bool isOnline() const {
     return _reading.valid && (millis() - _reading.timestamp < 60000);
   }
 
-  // ── JSON for cloud upload ────────────────────────────────────────────────
   String toJson(uint8_t addr = MODBUS_SLAVE_ADDR) const {
     char buf[160];
     snprintf(buf, sizeof(buf),
-      "{\"sensor_addr\":%d,\"moisture_pct\":%.1f,\"temp_c\":%.1f,"
-      "\"raw_moisture\":%d,\"raw_temp\":%d,\"read_ok\":%s}",
+      "{\"sensor_addr\":%d,\"moisture_pct\":%.1f,\"temp_c\":%.1f,\"read_ok\":%s}",
       addr,
       _reading.valid ? _reading.moisture_pct : -1.0f,
       _reading.valid ? _reading.temp_c       : -99.0f,
-      _reading.raw_moisture, _reading.raw_temp,
       _reading.valid ? "true" : "false");
     return String(buf);
-  }
-
-  // ── Diagnostic scan — tries 3 baud rates × 5 slave addresses ────────────
-  // Remove/comment out after sensor is confirmed working.
-  void diagScan() {
-    Serial.println("[modbus-diag] === SENSOR SCAN START ===");
-    Serial.printf("[modbus-diag] RO=GPIO%d  DI=GPIO%d  DE=GPIO%d\n",
-      PIN_RS485_RO, PIN_RS485_DI, PIN_RS485_DE);
-    Serial.println("[modbus-diag] If all RX=(nothing): swap A and B wires on MAX485");
-
-    const uint32_t bauds[] = { 9600, 4800, 19200 };
-    for (uint32_t baud : bauds) {
-      Serial.printf("\n[modbus-diag] --- baud %lu ---\n", baud);
-      MODBUS_SERIAL.end();
-      delay(50);
-      MODBUS_SERIAL.begin(baud, SERIAL_8N1, PIN_RS485_RO, PIN_RS485_DI);
-      delay(50);
-
-      for (uint8_t addr = 1; addr <= 5; addr++) {
-        while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
-
-        uint8_t req[8];
-        buildRequest(req, addr, 0x0000, 2);
-
-        Serial.printf("[modbus-diag] addr=%d TX: ", addr);
-        for (int i = 0; i < 8; i++) Serial.printf("%02X ", req[i]);
-        Serial.println();
-
-        digitalWrite(PIN_RS485_DE, HIGH);
-        delayMicroseconds(500);
-        MODBUS_SERIAL.write(req, 8);
-        MODBUS_SERIAL.flush();
-        delayMicroseconds(500);
-        digitalWrite(PIN_RS485_DE, LOW);
-
-        uint32_t t = millis();
-        uint8_t  resp[32];
-        int      rLen = 0;
-        while (millis() - t < 1500 && rLen < 32) {
-          if (MODBUS_SERIAL.available()) resp[rLen++] = MODBUS_SERIAL.read();
-        }
-
-        if (rLen == 0) {
-          Serial.println("[modbus-diag]        RX: (nothing)");
-        } else {
-          Serial.printf("[modbus-diag]        RX (%d bytes): ", rLen);
-          for (int i = 0; i < rLen; i++) Serial.printf("%02X ", resp[i]);
-          Serial.println(" ← FOUND SENSOR!");
-        }
-        delay(200);
-      }
-    }
-
-    // Restore normal baud
-    MODBUS_SERIAL.end();
-    MODBUS_SERIAL.begin(MODBUS_BAUD, SERIAL_8N1, PIN_RS485_RO, PIN_RS485_DI);
-    Serial.println("\n[modbus-diag] === SCAN END ===");
   }
 
 private:
   SensorReading _reading;
 
-  // ── CRC-16 Modbus ────────────────────────────────────────────────────────
-  static uint16_t crc16(const uint8_t* data, size_t len) {
+  void setTX() { digitalWrite(PIN_RS485_DE, HIGH); digitalWrite(PIN_RS485_RE, HIGH); }
+  void setRX() { digitalWrite(PIN_RS485_DE, LOW);  digitalWrite(PIN_RS485_RE, LOW);  }
+
+  static uint16_t crc16(const uint8_t* d, uint8_t len) {
     uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < len; i++) {
-      crc ^= data[i];
-      for (int b = 0; b < 8; b++) {
-        if (crc & 0x0001) { crc >>= 1; crc ^= 0xA001; }
-        else               { crc >>= 1; }
-      }
+    for (uint8_t i = 0; i < len; i++) {
+      crc ^= d[i];
+      for (uint8_t b = 0; b < 8; b++)
+        crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
     }
     return crc;
   }
 
-  // ── Build RTU request ────────────────────────────────────────────────────
-  void buildRequest(uint8_t* buf, uint8_t slave, uint16_t reg, uint16_t count) {
-    buf[0] = slave;
-    buf[1] = 0x03;           // Read Holding Registers
-    buf[2] = reg >> 8;
-    buf[3] = reg & 0xFF;
-    buf[4] = count >> 8;
-    buf[5] = count & 0xFF;
-    uint16_t c = crc16(buf, 6);
-    buf[6] = c & 0xFF;
-    buf[7] = c >> 8;
-  }
-
-  // ── Single read attempt ──────────────────────────────────────────────────
-  // Datasheet (RS-WS-N01-TR-1) response: addr+fc+byteCount(6)+6data+2CRC = 11 bytes
-  // byteCount = 0x06 (6 bytes = 3 registers), moisture at [3:4], temp at [5:6]
   bool readOnce(uint8_t slaveAddr) {
+    // Fixed request frame for count=2 (moisture + temperature)
+    const uint8_t req[] = { (uint8_t)slaveAddr, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B };
+
     while (MODBUS_SERIAL.available()) MODBUS_SERIAL.read();
 
-    uint8_t req[8];
-    buildRequest(req, slaveAddr, 0x0000, 2);
+    Serial.printf("[modbus] TX: %02X %02X %02X %02X %02X %02X %02X %02X\n",
+      req[0],req[1],req[2],req[3],req[4],req[5],req[6],req[7]);
 
-    digitalWrite(PIN_RS485_DE, HIGH);
+    setTX();
     delayMicroseconds(500);
-    MODBUS_SERIAL.write(req, 8);
+    MODBUS_SERIAL.write(req, sizeof(req));
     MODBUS_SERIAL.flush();
-    delayMicroseconds(500);
-    digitalWrite(PIN_RS485_DE, LOW);
+    delayMicroseconds(200);
+    setRX();
 
-    // Wait for up to 11 bytes (byteCount=6 response) or 9 bytes (byteCount=4)
+    // Collect up to 16 bytes over 1500 ms
     uint32_t t = millis();
-    uint8_t  resp[16];
-    int      rLen = 0;
-    while (millis() - t < MODBUS_TIMEOUT_MS) {
-      if (MODBUS_SERIAL.available()) {
-        resp[rLen++] = MODBUS_SERIAL.read();
-        if (rLen >= 3) {
-          // Once we know byteCount, wait for exactly that many bytes + 2 CRC
-          int expected = 3 + resp[2] + 2;
-          if (rLen >= expected) break;
-        }
-      }
+    uint8_t  buf[16];
+    int      idx = 0;
+    while (millis() - t < 1500 && idx < 16) {
+      if (MODBUS_SERIAL.available())
+        buf[idx++] = MODBUS_SERIAL.read();
     }
 
-    // Need at least 9 bytes (minimum valid response)
-    if (rLen < 9) return false;
+    Serial.printf("[modbus] RX(%d):", idx);
+    for (int i = 0; i < idx; i++) Serial.printf(" %02X", buf[i]);
+    Serial.println();
 
-    // byteCount tells us where CRC starts
-    int dataLen = resp[2];           // number of data bytes (4 or 6)
-    int crcIdx  = 3 + dataLen;       // index of CRC low byte
-    if (rLen < crcIdx + 2) return false;
+    if (idx < 9) return false;
 
-    uint16_t rxCrc   = resp[crcIdx] | (resp[crcIdx + 1] << 8);
-    uint16_t calcCrc = crc16(resp, crcIdx);
-    if (rxCrc != calcCrc) {
-      Serial.printf("[modbus] CRC mismatch: got 0x%04X, expected 0x%04X\n", rxCrc, calcCrc);
+    // Scan for frame header: slaveAddr 0x03 0x04
+    int fs = -1;
+    for (int i = 0; i <= idx - 7; i++) {
+      if (buf[i] == slaveAddr && buf[i+1] == 0x03 && buf[i+2] == 0x04) {
+        fs = i; break;
+      }
+    }
+    if (fs == -1) {
+      Serial.println("[modbus] frame header not found");
       return false;
     }
 
-    // Validate address, function code, and that we have at least 4 data bytes
-    if (resp[0] != slaveAddr || resp[1] != 0x03 || dataLen < 4) return false;
+    uint8_t* f = &buf[fs];
 
-    // Moisture at bytes 3-4, temperature at bytes 5-6 (per datasheet)
-    _reading.raw_moisture = (int16_t)((resp[3] << 8) | resp[4]);
-    _reading.raw_temp     = (int16_t)((resp[5] << 8) | resp[6]);
-    _reading.moisture_pct = _reading.raw_moisture * 0.1f;
-    _reading.temp_c       = _reading.raw_temp     * 0.1f;
+    // Validate CRC
+    uint16_t rxCRC  = f[7] | ((uint16_t)f[8] << 8);
+    uint16_t calCRC = crc16(f, 7);
+    if (rxCRC != calCRC) {
+      Serial.printf("[modbus] CRC fail: got 0x%04X expected 0x%04X\n", rxCRC, calCRC);
+      return false;
+    }
+
+    // Moisture
+    _reading.moisture_pct = ((f[3] << 8) | f[4]) / 10.0f;
+
+    // Temperature (signed)
+    int16_t rawTemp = (int16_t)((f[5] << 8) | f[6]);
+    _reading.temp_c = rawTemp / 10.0f;
 
     if (_reading.moisture_pct < 0 || _reading.moisture_pct > 100) return false;
     if (_reading.temp_c < -40   || _reading.temp_c > 80)           return false;
