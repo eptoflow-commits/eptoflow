@@ -142,14 +142,9 @@ router.post(
   })
 );
 
-/** Delete a device */
-router.delete('/:id', asyncH(async (req, res) => {
-  const { rowCount } = await query(
-    `DELETE FROM devices WHERE id=$1 AND user_id=$2`,
-    [req.params.id, req.user.id]
-  );
-  if (!rowCount) throw Errors.notFound('Device');
-  res.json({ ok: true });
+/** Delete a device — disabled: contact admin to remove a device */
+router.delete('/:id', asyncH(async (_req, res) => {
+  res.status(403).json({ error: 'Device removal is not permitted. Contact your administrator.' });
 }));
 
 // ── Zone names ─────────────────────────────────────────────────────────────

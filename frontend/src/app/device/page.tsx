@@ -603,9 +603,7 @@ function DeviceContent({ id }: { id: string }) {
       </div>
 
       {/* ── Live Sensor Panel ── */}
-      {plan.hasMoisture && (
-        <LiveSensorPanel deviceId={id} isPremium={isPremium} />
-      )}
+      <LiveSensorPanel deviceId={id} isPremium={isPremium} />
 
       {/* ── Output controls ── */}
       <div style={{ fontSize:13, fontWeight:700, color:'#374151', marginBottom:10, letterSpacing:'-0.01em' }}>
