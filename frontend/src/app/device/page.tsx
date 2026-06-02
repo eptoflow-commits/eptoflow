@@ -352,16 +352,15 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
     return () => clearInterval(iv);
   }, [deviceId]);
 
-  const moistureColor = moisture == null ? '#9ca3af' : moisture < 30 ? '#ef4444' : moisture < 60 ? '#f59e0b' : '#10b981';
-  const tempColor     = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#3b82f6';
-  const moistureLabel = moisture == null ? '—' : moisture < 30 ? 'Dry' : moisture < 60 ? 'Moderate' : 'Good';
-  const tempLabel     = temp == null ? '—' : temp > 38 ? 'Hot' : temp > 30 ? 'Warm' : 'Cool';
+  const mColor = moisture == null ? '#9ca3af' : moisture < 30 ? '#ef4444' : moisture < 60 ? '#f59e0b' : '#10b981';
+  const tColor = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#3b82f6';
+  const mLabel = moisture == null ? 'No data' : moisture < 30 ? '🔴 Dry — needs water' : moisture < 60 ? '🟡 Moderate' : '🟢 Well watered';
+  const tLabel = temp == null ? 'No data' : temp > 38 ? '🔴 Very hot' : temp > 30 ? '🟡 Warm' : '🟢 Cool';
 
   return (
     <div style={{
       borderRadius: 18, overflow: 'hidden', marginBottom: 16,
-      border: '1.5px solid #e0f2fe',
-      boxShadow: '0 4px 20px rgba(59,130,246,0.08)',
+      boxShadow: '0 4px 24px rgba(14,165,233,0.12)',
     }}>
       {/* Header */}
       <div style={{
@@ -369,87 +368,49 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
         padding: '12px 16px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <div style={{ color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: '-0.01em' }}>
-          🌱 Soil Sensor
-        </div>
-        {age && <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10 }}>Updated {age}</div>}
+        <div style={{ color: '#fff', fontWeight: 800, fontSize: 13 }}>🌱 Soil Sensor</div>
+        {age && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10 }}>Updated {age}</div>}
       </div>
 
-      {/* Two gauges */}
-      <div style={{ background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+      {/* Two metric cards side by side */}
+      <div style={{ background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#f1f5f9' }}>
 
-        {/* Moisture */}
-        <div style={{ padding: '18px 16px', borderRight: '1px solid #f1f5f9' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+        {/* Moisture card */}
+        <div style={{ background: '#fff', padding: '20px 16px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
             💧 Moisture
           </div>
-          {/* Arc gauge */}
-          <div style={{ position: 'relative', width: 80, height: 48, margin: '0 auto 8px' }}>
-            <svg viewBox="0 0 80 48" style={{ width: '100%', height: '100%' }}>
-              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round"/>
-              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke={moistureColor}
-                strokeWidth="8" strokeLinecap="round"
-                strokeDasharray={`${(moisture ?? 0) * 1.068} 200`}
-                style={{ transition: 'stroke-dasharray 1.2s ease, stroke 0.5s' }}/>
-            </svg>
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              textAlign: 'center', fontWeight: 900, fontSize: 18, color: moistureColor,
-              lineHeight: 1, transition: 'color 0.5s',
-            }}>
-              {moisture == null ? '—' : `${moisture}%`}
-            </div>
+          <div style={{ fontSize: 40, fontWeight: 900, color: mColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, transition: 'color 0.5s' }}>
+            {moisture == null ? '—' : `${Math.round(moisture * 10) / 10}%`}
           </div>
-          {/* Bar */}
-          <div style={{ height: 6, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
             <div style={{
-              height: '100%', borderRadius: 4,
-              width: `${moisture ?? 0}%`,
-              background: `linear-gradient(90deg,${moistureColor}88,${moistureColor})`,
-              boxShadow: `0 0 6px ${moistureColor}66`,
+              height: '100%', borderRadius: 99,
+              width: `${Math.min(moisture ?? 0, 100)}%`,
+              background: `linear-gradient(90deg,${mColor}bb,${mColor})`,
               transition: 'width 1.2s ease, background 0.5s',
             }}/>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: moistureColor }}>
-            {moistureLabel}
-          </div>
+          <div style={{ fontSize: 11, color: mColor, fontWeight: 600, transition: 'color 0.5s' }}>{mLabel}</div>
         </div>
 
-        {/* Temperature */}
-        <div style={{ padding: '18px 16px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+        {/* Temperature card */}
+        <div style={{ background: '#fff', padding: '20px 16px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
             🌡️ Temperature
           </div>
-          {/* Thermometer visual */}
-          <div style={{ position: 'relative', width: 80, height: 48, margin: '0 auto 8px' }}>
-            <svg viewBox="0 0 80 48" style={{ width: '100%', height: '100%' }}>
-              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round"/>
-              <path d="M8 44 A 34 34 0 0 1 72 44" fill="none" stroke={tempColor}
-                strokeWidth="8" strokeLinecap="round"
-                strokeDasharray={`${Math.min(((temp ?? 0) / 50) * 100, 100) * 1.068} 200`}
-                style={{ transition: 'stroke-dasharray 1.2s ease, stroke 0.5s' }}/>
-            </svg>
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              textAlign: 'center', fontWeight: 900, fontSize: 17, color: tempColor,
-              lineHeight: 1, transition: 'color 0.5s',
-            }}>
-              {temp == null ? '—' : `${temp}°`}
-            </div>
+          <div style={{ fontSize: 40, fontWeight: 900, color: tColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, transition: 'color 0.5s' }}>
+            {temp == null ? '—' : `${Math.round(temp * 10) / 10}°C`}
           </div>
-          {/* Bar */}
-          <div style={{ height: 6, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
             <div style={{
-              height: '100%', borderRadius: 4,
+              height: '100%', borderRadius: 99,
               width: `${Math.min(((temp ?? 0) / 50) * 100, 100)}%`,
-              background: `linear-gradient(90deg,${tempColor}88,${tempColor})`,
-              boxShadow: `0 0 6px ${tempColor}66`,
+              background: `linear-gradient(90deg,${tColor}bb,${tColor})`,
               transition: 'width 1.2s ease, background 0.5s',
             }}/>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: tempColor }}>
-            {tempLabel}
-          </div>
+          <div style={{ fontSize: 11, color: tColor, fontWeight: 600, transition: 'color 0.5s' }}>{tLabel}</div>
         </div>
       </div>
 
