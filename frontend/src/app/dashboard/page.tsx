@@ -153,6 +153,101 @@ async function fetchWeather(): Promise<Weather | null> {
   } catch { return null; }
 }
 
+/* ─── Watering advice strip ──────────────────────────────────────────── */
+function WateringAdviceStrip({ weather }: { weather: Weather }) {
+  const advice = wateringAdvice(weather);
+  return (
+    <div style={{
+      margin: '0 12px 12px',
+      borderRadius: 12,
+      background: 'rgba(255,255,255,0.18)',
+      backdropFilter: 'blur(4px)',
+      padding: '10px 14px',
+      display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      <span style={{ fontSize: 22, flexShrink: 0 }}>{advice.icon}</span>
+      <div style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{advice.msg}</div>
+    </div>
+  );
+}
+
+/* ─── AQI card ───────────────────────────────────────────────────────── */
+function AqiCard({ weather }: { weather: Weather }) {
+  if (weather.aqi === null) return null;
+  const a = aqiLabel(weather.aqi);
+  const pct = Math.min(100, (weather.aqi / 300) * 100);
+  return (
+    <div className="fade-up" style={{ marginBottom: 16, animationDelay: '0.08s' }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, padding: '16px 18px',
+        border: `2px solid ${a.color}25`,
+        boxShadow: `0 4px 20px ${a.color}15`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+              background: a.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+            }}>{a.emoji}</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Air Quality Index</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: a.color, letterSpacing: '-0.02em' }}>{a.label}</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', padding: '8px 14px', borderRadius: 12, background: a.bg }}>
+            <div style={{ fontSize: 32, fontWeight: 900, color: a.color, lineHeight: 1, letterSpacing: '-0.04em' }}>{Math.round(weather.aqi)}</div>
+            <div style={{ fontSize: 10, color: a.color, fontWeight: 700, opacity: 0.7 }}>US AQI</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 99, width: `${pct}%`,
+              background: 'linear-gradient(90deg,#059669,#d97706,#dc2626)',
+              transition: 'width 1s ease',
+            }}/>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            {['Good', 'Moderate', 'Unhealthy', 'Hazardous'].map(l => (
+              <span key={l} style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{l}</span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {weather.pm25 !== null && (
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: '#1f2937', letterSpacing: '-0.02em' }}>
+                {Math.round(weather.pm25)} <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>µg/m³</span>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>PM2.5 — Fine particles</div>
+              <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Affects lungs & plants</div>
+            </div>
+          )}
+          {weather.pm10 !== null && (
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: '#1f2937', letterSpacing: '-0.02em' }}>
+                {Math.round(weather.pm10)} <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>µg/m³</span>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>PM10 — Dust particles</div>
+              <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Settles on leaves</div>
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: 10, padding: '9px 12px', borderRadius: 12, background: a.bg, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>🌿</span>
+          <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>
+            {weather.aqi <= 50   && 'Great air — perfect day to tend your garden'}
+            {weather.aqi > 50   && weather.aqi <= 100 && 'Acceptable air — gardening is fine today'}
+            {weather.aqi > 100  && weather.aqi <= 150 && 'Sensitive plants may be affected — rinse leaves'}
+            {weather.aqi > 150  && weather.aqi <= 200 && 'Poor air — wipe plant leaves, limit outdoor time'}
+            {weather.aqi > 200  && 'Very poor air — keep plants indoors if possible'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Dashboard ───────────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -298,114 +393,15 @@ export default function DashboardPage() {
               </div>
             </div>
             {/* Watering advice strip */}
-            {(() => {
-              const advice = wateringAdvice(weather);
-              return (
-                <div style={{
-                  margin:`0 12px 12px`,
-                  borderRadius:12,
-                  background:'rgba(255,255,255,0.18)',
-                  backdropFilter:'blur(4px)',
-                  padding:'10px 14px',
-                  display:'flex', alignItems:'center', gap:10,
-                }}>
-                  <span style={{ fontSize:22, flexShrink:0 }}>{advice.icon}</span>
-                  <div style={{ fontSize:13, color:'#fff', fontWeight:700 }}>{advice.msg}</div>
-                </div>
-              );
-            })()}
+            <WateringAdviceStrip weather={weather} />
           </div>
         )}
       </div>
 
       {/* ── Air Quality Card ── */}
-      {weather && weather !== 'loading' && weather.aqi !== null && (() => {
-        const a = aqiLabel(weather.aqi!);
-        const pct = Math.min(100, (weather.aqi! / 300) * 100);
-        const barColor = weather.aqi! <= 50 ? '#059669'
-          : weather.aqi! <= 100 ? '#d97706'
-          : weather.aqi! <= 150 ? '#ea580c'
-          : weather.aqi! <= 200 ? '#dc2626' : '#9333ea';
-        return (
-          <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.08s' }}>
-            <div style={{
-              background:'#fff', borderRadius:20, padding:'16px 18px',
-              border:`2px solid ${a.color}25`,
-              boxShadow:`0 4px 20px ${a.color}15`,
-            }}>
-              {/* Header */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{
-                    width:44, height:44, borderRadius:14, flexShrink:0,
-                    background:a.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24,
-                  }}>{a.emoji}</div>
-                  <div>
-                    <div style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.07em' }}>Air Quality Index</div>
-                    <div style={{ fontSize:16, fontWeight:900, color:a.color, letterSpacing:'-0.02em' }}>{a.label}</div>
-                  </div>
-                </div>
-                <div style={{
-                  textAlign:'right',
-                  padding:'8px 14px', borderRadius:12, background:a.bg,
-                }}>
-                  <div style={{ fontSize:32, fontWeight:900, color:a.color, lineHeight:1, letterSpacing:'-0.04em' }}>{Math.round(weather.aqi!)}</div>
-                  <div style={{ fontSize:10, color:a.color, fontWeight:700, opacity:0.7 }}>US AQI</div>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ height:8, background:'#f1f5f9', borderRadius:99, overflow:'hidden' }}>
-                  <div style={{
-                    height:'100%', borderRadius:99, width:`${pct}%`,
-                    background:`linear-gradient(90deg,#059669,#d97706,#dc2626)`,
-                    transition:'width 1s ease',
-                  }}/>
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-                  {['Good','Moderate','Unhealthy','Hazardous'].map(l => (
-                    <span key={l} style={{ fontSize:9, color:'#94a3b8', fontWeight:600 }}>{l}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* PM readings */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                {weather.pm25 !== null && (
-                  <div style={{ background:'#f8fafc', borderRadius:12, padding:'10px 12px' }}>
-                    <div style={{ fontSize:20, fontWeight:900, color:'#1f2937', letterSpacing:'-0.02em' }}>{Math.round(weather.pm25)} <span style={{ fontSize:11, fontWeight:600, color:'#9ca3af' }}>µg/m³</span></div>
-                    <div style={{ fontSize:11, fontWeight:700, color:'#64748b' }}>PM2.5 — Fine particles</div>
-                    <div style={{ fontSize:10, color:'#9ca3af', marginTop:2 }}>Affects lungs & plants</div>
-                  </div>
-                )}
-                {weather.pm10 !== null && (
-                  <div style={{ background:'#f8fafc', borderRadius:12, padding:'10px 12px' }}>
-                    <div style={{ fontSize:20, fontWeight:900, color:'#1f2937', letterSpacing:'-0.02em' }}>{Math.round(weather.pm10)} <span style={{ fontSize:11, fontWeight:600, color:'#9ca3af' }}>µg/m³</span></div>
-                    <div style={{ fontSize:11, fontWeight:700, color:'#64748b' }}>PM10 — Dust particles</div>
-                    <div style={{ fontSize:10, color:'#9ca3af', marginTop:2 }}>Settles on leaves</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Garden tip based on AQI */}
-              <div style={{
-                marginTop:10, padding:'9px 12px', borderRadius:12,
-                background:a.bg, display:'flex', alignItems:'center', gap:8,
-              }}>
-                <span style={{ fontSize:16 }}>🌿</span>
-                <div style={{ fontSize:12, color:a.color, fontWeight:600 }}>
-                  {weather.aqi! <= 50  && 'Great air — perfect day to tend your garden'}
-                  {weather.aqi! > 50  && weather.aqi! <= 100 && 'Acceptable air — gardening is fine today'}
-                  {weather.aqi! > 100 && weather.aqi! <= 150 && 'Sensitive plants may be affected — rinse leaves'}
-                  {weather.aqi! > 150 && weather.aqi! <= 200 && 'Poor air — wipe plant leaves, limit outdoor time'}
-                  {weather.aqi! > 200 && 'Very poor air — keep plants indoors if possible'}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {weather && weather !== 'loading' && (
+        <AqiCard weather={weather} />
+      )}
 
       {/* ── Subscription card ── */}
       <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.1s' }}>
