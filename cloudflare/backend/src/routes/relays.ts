@@ -105,7 +105,7 @@ app.get('/:deviceId/automation', authUser, loadSubscription(), async (c) => {
 });
 
 const ruleSchema = z.object({
-  enabled:        z.boolean().default(true),
+  enabled:        z.union([z.boolean(), z.number().int()]).transform(v => !!v).default(true),
   mode:           z.enum(['manual', 'auto']).default('auto'),
   on_moisture_lt: z.number().min(0).max(100).nullable().default(null),
   on_temp_gt:     z.number().min(-40).max(80).nullable().default(null),
