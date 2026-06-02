@@ -6,11 +6,12 @@ import { api } from '@/lib/api';
 type Totals = {
   users: number; active_subscriptions: number; expired_subscriptions: number;
   pending_payments: number; online_devices: number; offline_devices: number;
-  premium_requests: number; new_contacts: number;
+  premium_requests: number; new_contacts: number; addon_requests: number;
 };
 
 const STAT_CARDS = [
-  { key: 'new_contacts',         label: 'New Requests',       icon: '📬', color: 'bg-red-50 text-red-700',      href: '/admin/contact-requests' },
+  { key: 'addon_requests',       label: 'Addon Requests',     icon: '⚡', color: 'bg-purple-50 text-purple-700', href: '/admin/addon-requests' },
+  { key: 'new_contacts',         label: 'New Contacts',       icon: '📬', color: 'bg-red-50 text-red-700',      href: '/admin/contact-requests' },
   { key: 'users',                label: 'Total Users',        icon: '👥', color: 'bg-blue-50 text-blue-700',    href: '/admin/users' },
   { key: 'online_devices',       label: 'Online Devices',     icon: '📡', color: 'bg-green-50 text-green-700',  href: '/admin/devices' },
   { key: 'active_subscriptions', label: 'Active Plans',       icon: '✅', color: 'bg-brand-50 text-brand-700', href: '/admin/subscriptions' },
@@ -54,6 +55,9 @@ export default function AdminDashboard() {
             <div className="text-3xl font-bold text-gray-900 group-hover:text-brand-600 transition-colors">
               {t[c.key as keyof Totals]}
             </div>
+            {c.key === 'addon_requests' && t.addon_requests > 0 && (
+              <div className="mt-1 text-xs text-purple-600 font-medium">Activate outputs →</div>
+            )}
             {c.key === 'new_contacts' && t.new_contacts > 0 && (
               <div className="mt-1 text-xs text-red-600 font-medium">Needs follow-up →</div>
             )}

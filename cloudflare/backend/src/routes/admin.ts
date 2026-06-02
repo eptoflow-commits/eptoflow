@@ -14,6 +14,15 @@ app.use('*', authAdmin);
 // ---------- Dashboard -------------------------------------------------------
 app.get('/dashboard', async (c) => {
   const nowIso = new Date().toISOString();
+
+  await c.env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS relay_requests (
+      id TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      relay_key TEXT NOT NULL, label TEXT NOT NULL, message TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`).run().catch(() => {});
+
   const stmts = await c.env.DB.batch([
     c.env.DB.prepare(`SELECT COUNT(*) AS c FROM users`),
     c.env.DB.prepare(`SELECT COUNT(*) AS c FROM subscriptions WHERE status='active' AND end_date>?1`).bind(nowIso),
@@ -21,6 +30,7 @@ app.get('/dashboard', async (c) => {
     c.env.DB.prepare(`SELECT COUNT(*) AS c FROM payments WHERE verification_status='pending'`),
     c.env.DB.prepare(`SELECT COUNT(*) AS c FROM devices WHERE status='online'`),
     c.env.DB.prepare(`SELECT COUNT(*) AS c FROM devices WHERE status<>'online'`),
+    c.env.DB.prepare(`SELECT COUNT(*) AS c FROM relay_requests WHERE status='pending'`),
   ]);
   const num = (r: any) => Number(r?.results?.[0]?.c || 0);
   return c.json({
@@ -31,6 +41,7 @@ app.get('/dashboard', async (c) => {
       pending_payments:      num(stmts[3]),
       online_devices:        num(stmts[4]),
       offline_devices:       num(stmts[5]),
+      addon_requests:        num(stmts[6]),
     },
   });
 });

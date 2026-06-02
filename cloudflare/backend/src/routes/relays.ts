@@ -266,6 +266,105 @@ app.post('/:deviceId/deactivate', authAdmin, async (c) => {
   return c.json({ ok: true, relay_key, activated: false });
 });
 
+/** POST /api/relays/:deviceId/request — user requests activation of a premium output */
+app.post('/:deviceId/request', authUser, loadSubscription(), async (c) => {
+  const u        = c.get('user')!;
+  const deviceId = c.req.param('deviceId');
+
+  const body = await c.req.json<{ relay_key: string; message?: string }>();
+  const relay_key = body?.relay_key as string;
+  const message   = (body?.message ?? '').trim();
+
+  if (!PREMIUM_RELAYS.includes(relay_key as any))
+    throw Err.badRequest('Invalid relay key — must be relay6, relay7, or relay8');
+
+  const device = await c.env.DB.prepare(
+    `SELECT id FROM devices WHERE id=?1 AND user_id=?2`
+  ).bind(deviceId, u.id).first<any>();
+  if (!device) throw Err.notFound('Device');
+
+  const LABELS: Record<string, string> = {
+    relay6: 'MediSpray', relay7: 'Extra Zone 1', relay8: 'Extra Zone 2',
+  };
+  const label = LABELS[relay_key] ?? relay_key;
+
+  // Ensure relay_requests table exists
+  await c.env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS relay_requests (
+      id         TEXT PRIMARY KEY,
+      device_id  TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      relay_key  TEXT NOT NULL,
+      label      TEXT NOT NULL,
+      message    TEXT,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`).run();
+
+  await c.env.DB.prepare(
+    `INSERT INTO relay_requests (id, device_id, user_id, relay_key, label, message)
+     VALUES (?1,?2,?3,?4,?5,?6)`
+  ).bind(newId(), deviceId, u.id, relay_key, label, message || null).run();
+
+  // Notify every admin user
+  const { results: admins } = await c.env.DB.prepare(
+    `SELECT id FROM admins LIMIT 10`
+  ).all<any>().catch(() => ({ results: [] }));
+
+  for (const admin of admins) {
+    await c.env.DB.prepare(
+      `INSERT INTO notifications (id, user_id, title, message, type)
+       VALUES (?1,?2,'New output request',?3,'relay_request')`
+    ).bind(
+      newId(), admin.id,
+      `User requested "${label}" for device ${deviceId}. ${message ? 'Note: ' + message : ''}`.trim()
+    ).run().catch(() => {});
+  }
+
+  await audit(c.env, {
+    actorType: 'user', actorId: u.id, action: 'relay.request',
+    entityType: 'device', entityId: deviceId,
+    metadata: { relay_key, label, message },
+  });
+
+  return c.json({ ok: true, message: 'Request submitted. Admin will activate it shortly.' });
+});
+
+/** GET /api/relays/requests (admin) — list all pending addon requests */
+app.get('/requests', authAdmin, async (c) => {
+  await c.env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS relay_requests (
+      id         TEXT PRIMARY KEY,
+      device_id  TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      relay_key  TEXT NOT NULL,
+      label      TEXT NOT NULL,
+      message    TEXT,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`).run();
+
+  const { results } = await c.env.DB.prepare(`
+    SELECT rr.*, u.email, u.full_name, d.device_uid, d.device_name
+    FROM relay_requests rr
+    JOIN users u  ON u.id  = rr.user_id
+    JOIN devices d ON d.id = rr.device_id
+    WHERE rr.status = 'pending'
+    ORDER BY rr.created_at DESC
+  `).all<any>();
+
+  return c.json({ requests: results });
+});
+
+/** POST /api/relays/requests/:id/resolve (admin) — mark request resolved */
+app.post('/requests/:id/resolve', authAdmin, async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.prepare(
+    `UPDATE relay_requests SET status='resolved' WHERE id=?1`
+  ).bind(id).run();
+  return c.json({ ok: true });
+});
+
 /** GET /api/relays/:deviceId/push-config (admin) — push full config bundle */
 app.get('/:deviceId/push-config', authAdmin, async (c) => {
   const deviceId = c.req.param('deviceId');
