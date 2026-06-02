@@ -137,4 +137,60 @@ router.post(
   })
 );
 
+// ── POST /api/device/sensor — store sensor reading from ESP32 ────────────────
+const sensorSchema = z.object({
+  sensor_addr:  z.number().int().optional(),
+  moisture_pct: z.number().nullable().optional(),
+  temp_c:       z.number().nullable().optional(),
+  raw_moisture: z.number().int().optional(),
+  raw_temp:     z.number().int().optional(),
+  read_ok:      z.boolean().optional(),
+});
+
+router.post(
+  '/sensor',
+  authDevice,
+  validate(sensorSchema),
+  asyncH(async (req, res) => {
+    const {
+      sensor_addr  = 1,
+      moisture_pct = null,
+      temp_c       = null,
+      raw_moisture = null,
+      raw_temp     = null,
+      read_ok      = true,
+    } = req.body;
+
+    // Ensure table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS sensor_readings (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        device_id    UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+        sensor_addr  INTEGER NOT NULL DEFAULT 1,
+        moisture_pct NUMERIC(6,2),
+        temp_c       NUMERIC(6,2),
+        raw_moisture INTEGER,
+        raw_temp     INTEGER,
+        read_ok      BOOLEAN NOT NULL DEFAULT TRUE,
+        recorded_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `).catch(() => {});
+
+    await query(
+      `INSERT INTO sensor_readings
+         (device_id, sensor_addr, moisture_pct, temp_c, raw_moisture, raw_temp, read_ok)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [req.device.id, sensor_addr, moisture_pct, temp_c, raw_moisture, raw_temp, read_ok]
+    );
+
+    // Update device last_seen
+    await query(
+      `UPDATE devices SET last_seen_at=NOW(), status='online' WHERE id=$1`,
+      [req.device.id]
+    );
+
+    res.json({ ok: true });
+  })
+);
+
 export default router;
