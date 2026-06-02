@@ -104,18 +104,31 @@ app.get('/:deviceId/automation', authUser, loadSubscription(), async (c) => {
   return c.json({ rules: results });
 });
 
+// Strip seconds from time strings ("09:01:00" → "09:01"), return null for invalid/empty
+function toHHMM(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const m = v.match(/^(\d{2}:\d{2})/);
+  return m ? m[1] : null;
+}
+
 const ruleSchema = z.object({
   enabled:        z.union([z.boolean(), z.number().int()]).transform(v => !!v).default(true),
-  mode:           z.enum(['manual', 'auto']).default('auto'),
+  // mode/logic: null from DB falls back to default via ?? coercion
+  mode:           z.union([z.enum(['manual', 'auto']), z.null()])
+                    .transform(v => v ?? 'auto').default('auto'),
   on_moisture_lt: z.number().min(0).max(100).nullable().default(null),
   on_temp_gt:     z.number().min(-40).max(80).nullable().default(null),
-  on_logic:       z.enum(['AND', 'OR']).default('AND'),
+  on_logic:       z.union([z.enum(['AND', 'OR']), z.null()])
+                    .transform(v => v ?? 'AND').default('AND'),
   off_moisture_gt:z.number().min(0).max(100).nullable().default(null),
   off_temp_lt:    z.number().min(-40).max(80).nullable().default(null),
-  off_logic:      z.enum(['AND', 'OR']).default('AND'),
-  schedule_start: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
-  schedule_end:   z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
-  max_duration_s: z.number().min(0).max(7200).default(1800),
+  off_logic:      z.union([z.enum(['AND', 'OR']), z.null()])
+                    .transform(v => v ?? 'AND').default('AND'),
+  // Accept "HH:MM" or "HH:MM:SS" (some browsers include seconds), strip to "HH:MM"
+  schedule_start: z.string().nullable().default(null).transform(toHHMM),
+  schedule_end:   z.string().nullable().default(null).transform(toHHMM),
+  max_duration_s: z.union([z.number().min(0).max(7200), z.null()])
+                    .transform(v => v ?? 1800).default(1800),
 });
 
 /** PUT /api/relays/:deviceId/automation/:valveKey — create or replace rule */

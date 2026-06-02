@@ -30,9 +30,9 @@ type Rule = {
 
 const DEFAULT_RULE = (valveKey: string): Rule => ({
   valve_key: valveKey, enabled: true, mode: 'auto',
-  on_moisture_lt: null, on_temp_gt: null, on_logic: 'AND',
-  off_moisture_gt: null, off_temp_lt: null, off_logic: 'AND',
-  schedule_start: null, schedule_end: null,
+  on_moisture_lt: 30, on_temp_gt: null, on_logic: 'AND',
+  off_moisture_gt: 60, off_temp_lt: null, off_logic: 'AND',
+  schedule_start: '06:00', schedule_end: '08:00',
   max_duration_s: valveKey === 'relay6' ? 600 : 1800,
 });
 
