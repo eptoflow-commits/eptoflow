@@ -17,7 +17,7 @@
 #define PIN_RELAY5     26   // WiFi Status indicator  — auto-managed
 #define PIN_RELAY6     25   // Premium Add-on Valve 1 — locked by default
 #define PIN_RELAY7     33   // Premium Add-on Valve 2 — locked by default
-#define PIN_RELAY8     17   // Premium Add-on Valve 3 — locked by default
+#define PIN_RELAY8     15   // Premium Add-on Valve 3 — locked by default
 
 // ── Relay mapping ───────────────────────────────────────────────────────────
 // Logical key   → physical pin
