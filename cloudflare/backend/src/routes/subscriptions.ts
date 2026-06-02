@@ -60,6 +60,24 @@ app.post('/payment-intent', async (c) => {
   return c.json({ subscription, payment }, 201);
 });
 
+// User requests an upgrade — notifies admin
+app.post('/request-upgrade', async (c) => {
+  const u = c.get('user')!;
+  await c.env.DB.prepare(
+    `INSERT INTO notifications (user_id, title, message, type)
+     VALUES (?1, 'Premium plan requested',
+             'User ' || ?2 || ' has requested an upgrade to the Premium plan.',
+             'premium_request')`
+  ).bind(u.id, u.email).run();
+
+  await audit(c.env, {
+    actorType: 'user', actorId: u.id, action: 'subscription.request_premium',
+    entityType: 'user', entityId: u.id, metadata: {},
+  });
+
+  return c.json({ ok: true });
+});
+
 app.get('/payments', async (c) => {
   const u = c.get('user')!;
   const { results } = await c.env.DB.prepare(
