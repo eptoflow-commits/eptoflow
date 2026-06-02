@@ -104,32 +104,28 @@ app.get('/:deviceId/automation', authUser, loadSubscription(), async (c) => {
   return c.json({ rules: results });
 });
 
-// Strip seconds from time strings ("09:01:00" → "09:01"), return null for invalid/empty
-function toHHMM(v: string | null | undefined): string | null {
-  if (!v) return null;
+// Parse "HH:MM" or "HH:MM:SS" → "HH:MM", anything else → null
+function toHHMM(v: unknown): string | null {
+  if (!v || typeof v !== 'string') return null;
   const m = v.match(/^(\d{2}:\d{2})/);
   return m ? m[1] : null;
 }
 
-const ruleSchema = z.object({
-  enabled:        z.union([z.boolean(), z.number().int()]).transform(v => !!v).default(true),
-  // mode/logic: null from DB falls back to default via ?? coercion
-  mode:           z.union([z.enum(['manual', 'auto']), z.null()])
-                    .transform(v => v ?? 'auto').default('auto'),
-  on_moisture_lt: z.number().min(0).max(100).nullable().default(null),
-  on_temp_gt:     z.number().min(-40).max(80).nullable().default(null),
-  on_logic:       z.union([z.enum(['AND', 'OR']), z.null()])
-                    .transform(v => v ?? 'AND').default('AND'),
-  off_moisture_gt:z.number().min(0).max(100).nullable().default(null),
-  off_temp_lt:    z.number().min(-40).max(80).nullable().default(null),
-  off_logic:      z.union([z.enum(['AND', 'OR']), z.null()])
-                    .transform(v => v ?? 'AND').default('AND'),
-  // Accept "HH:MM" or "HH:MM:SS" (some browsers include seconds), strip to "HH:MM"
-  schedule_start: z.string().nullable().default(null).transform(toHHMM),
-  schedule_end:   z.string().nullable().default(null).transform(toHHMM),
-  max_duration_s: z.union([z.number().min(0).max(7200), z.null()])
-                    .transform(v => v ?? 1800).default(1800),
-});
+function parseRule(body: any) {
+  return {
+    enabled:        body.enabled == null ? true : !!body.enabled,
+    mode:           body.mode === 'manual' ? 'manual' : 'auto',
+    on_moisture_lt: (typeof body.on_moisture_lt === 'number' && body.on_moisture_lt >= 0 && body.on_moisture_lt <= 100) ? body.on_moisture_lt : null,
+    on_temp_gt:     (typeof body.on_temp_gt     === 'number' && body.on_temp_gt     >= -40 && body.on_temp_gt  <= 80)  ? body.on_temp_gt    : null,
+    on_logic:       body.on_logic  === 'OR' ? 'OR' : 'AND',
+    off_moisture_gt:(typeof body.off_moisture_gt === 'number' && body.off_moisture_gt >= 0 && body.off_moisture_gt <= 100) ? body.off_moisture_gt : null,
+    off_temp_lt:    (typeof body.off_temp_lt     === 'number' && body.off_temp_lt    >= -40 && body.off_temp_lt  <= 80)  ? body.off_temp_lt    : null,
+    off_logic:      body.off_logic === 'OR' ? 'OR' : 'AND',
+    schedule_start: toHHMM(body.schedule_start),
+    schedule_end:   toHHMM(body.schedule_end),
+    max_duration_s: (typeof body.max_duration_s === 'number' && body.max_duration_s > 0) ? Math.min(body.max_duration_s, 7200) : 1800,
+  };
+}
 
 /** PUT /api/relays/:deviceId/automation/:valveKey — create or replace rule */
 app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireActive: true }), async (c) => {
@@ -153,32 +149,29 @@ app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireA
     if (!lic?.activated) throw Err.forbidden(`${valveKey} is not activated on this device`);
   }
 
-  const rule = ruleSchema.parse(await c.req.json());
+  const rule = parseRule(await c.req.json().catch(() => ({})));
   await ensureTables(c.env.DB);
 
-  await c.env.DB.prepare(`
-    INSERT INTO automation_rules
-      (id, device_id, user_id, valve_key, enabled, mode,
-       on_moisture_lt, on_temp_gt, on_logic,
-       off_moisture_gt, off_temp_lt, off_logic,
-       schedule_start, schedule_end, max_duration_s)
-    VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
-    ON CONFLICT(device_id, valve_key) DO UPDATE SET
-      enabled=excluded.enabled, mode=excluded.mode,
-      on_moisture_lt=excluded.on_moisture_lt, on_temp_gt=excluded.on_temp_gt,
-      on_logic=excluded.on_logic,
-      off_moisture_gt=excluded.off_moisture_gt, off_temp_lt=excluded.off_temp_lt,
-      off_logic=excluded.off_logic,
-      schedule_start=excluded.schedule_start, schedule_end=excluded.schedule_end,
-      max_duration_s=excluded.max_duration_s,
-      updated_at=datetime('now')
-  `).bind(
-    newId(), deviceId, u.id, valveKey,
-    rule.enabled ? 1 : 0, rule.mode,
-    rule.on_moisture_lt, rule.on_temp_gt, rule.on_logic,
-    rule.off_moisture_gt, rule.off_temp_lt, rule.off_logic,
-    rule.schedule_start, rule.schedule_end, rule.max_duration_s,
-  ).run();
+  // Use DELETE + INSERT to avoid ON CONFLICT constraint dependency
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `DELETE FROM automation_rules WHERE device_id=?1 AND valve_key=?2`
+    ).bind(deviceId, valveKey),
+    c.env.DB.prepare(
+      `INSERT INTO automation_rules
+        (id, device_id, user_id, valve_key, enabled, mode,
+         on_moisture_lt, on_temp_gt, on_logic,
+         off_moisture_gt, off_temp_lt, off_logic,
+         schedule_start, schedule_end, max_duration_s)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)`
+    ).bind(
+      newId(), deviceId, u.id, valveKey,
+      rule.enabled ? 1 : 0, rule.mode,
+      rule.on_moisture_lt, rule.on_temp_gt, rule.on_logic,
+      rule.off_moisture_gt, rule.off_temp_lt, rule.off_logic,
+      rule.schedule_start, rule.schedule_end, rule.max_duration_s,
+    ),
+  ]);
 
   // Push updated rule to device directly (bypasses enqueue validation — sync_automation is internal)
   await c.env.DB.prepare(
