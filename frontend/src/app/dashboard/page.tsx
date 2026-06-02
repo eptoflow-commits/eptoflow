@@ -282,10 +282,8 @@ export default function DashboardPage() {
   const greetEmoji = hour < 12 ? '🌅' : hour < 17 ? '☀️' : '🌙';
   const firstName = user?.full_name?.split(' ')[0] || 'there';
 
-  const planColor = sub?.plan_name === 'premium' ? '#7c3aed'
-                  : sub?.plan_name === 'standard' ? '#0284c7' : '#059669';
-  const planDark  = sub?.plan_name === 'premium' ? '#6d28d9'
-                  : sub?.plan_name === 'standard' ? '#0369a1' : '#047857';
+  const planColor = sub?.plan_name === 'premium' ? '#7c3aed' : sub?.plan_name === 'standard' ? '#0284c7' : '#059669';
+  const planDark = sub?.plan_name === 'premium' ? '#6d28d9' : sub?.plan_name === 'standard' ? '#0369a1' : '#047857';
 
   return (
     <AppShell>
@@ -507,72 +505,74 @@ export default function DashboardPage() {
             <div style={{ fontSize:12, color:'#9ca3af' }}>Contact your admin to add a device</div>
           </div>
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {devices.map(d => (
-              <Link key={d.id} href={`/device?id=${d.id}`} style={{ textDecoration:'none' }}>
-                <div className="device-card" style={{
-                  background:'#fff', borderRadius:16, padding:'12px 16px',
-                  border:`1.5px solid ${d.status==='online' ? '#bbf7d0' : '#e5e7eb'}`,
-                  boxShadow:`0 2px 8px ${d.status==='online' ? 'rgba(5,150,105,0.08)' : 'rgba(0,0,0,0.04)'}`,
-                  display:'flex', alignItems:'center', gap:12,
-                  transition:'all 0.2s',
-                }}>
-                  <div style={{
-                    width:44, height:44, borderRadius:14, flexShrink:0,
-                    background: d.status==='online'
-                      ? `linear-gradient(135deg,${planColor},${planDark})`
-                      : '#f3f4f6',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:20, boxShadow: d.status==='online' ? `0 4px 12px ${planColor}40` : 'none',
-                  }}>
-                    {d.status==='online' ? '💧' : '💤'}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:800, color:'#1f2937', fontSize:14, marginBottom:2 }}>{d.device_name}</div>
-                    <div style={{ fontSize:11, color:'#9ca3af', fontWeight:500 }}>{d.device_uid}</div>
-                  </div>
-                  <div style={{
-                    display:'flex', alignItems:'center', gap:5,
-                    padding:'5px 10px', borderRadius:20,
-                    background: d.status==='online' ? '#dcfce7' : '#f3f4f6',
+          <>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {devices.map(d => (
+                <Link key={d.id} href={`/device?id=${d.id}`} style={{ textDecoration:'none' }}>
+                  <div className="device-card" style={{
+                    background:'#fff', borderRadius:16, padding:'12px 16px',
+                    border:`1.5px solid ${d.status==='online' ? '#bbf7d0' : '#e5e7eb'}`,
+                    boxShadow:`0 2px 8px ${d.status==='online' ? 'rgba(5,150,105,0.08)' : 'rgba(0,0,0,0.04)'}`,
+                    display:'flex', alignItems:'center', gap:12,
+                    transition:'all 0.2s',
                   }}>
                     <div style={{
-                      width:7, height:7, borderRadius:'50%',
-                      background: d.status==='online' ? '#059669' : '#9ca3af',
-                      boxShadow: d.status==='online' ? '0 0 0 3px rgba(5,150,105,0.2)' : 'none',
-                      animation: d.status==='online' ? 'pulse 2s infinite' : 'none',
-                    }}/>
-                    <span style={{ fontSize:11, fontWeight:700, color: d.status==='online' ? '#059669' : '#9ca3af' }}>
-                      {d.status}
-                    </span>
+                      width:44, height:44, borderRadius:14, flexShrink:0,
+                      background: d.status==='online'
+                        ? `linear-gradient(135deg,${planColor},${planDark})`
+                        : '#f3f4f6',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:20, boxShadow: d.status==='online' ? `0 4px 12px ${planColor}40` : 'none',
+                    }}>
+                      {d.status==='online' ? '💧' : '💤'}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:800, color:'#1f2937', fontSize:14, marginBottom:2 }}>{d.device_name}</div>
+                      <div style={{ fontSize:11, color:'#9ca3af', fontWeight:500 }}>{d.device_uid}</div>
+                    </div>
+                    <div style={{
+                      display:'flex', alignItems:'center', gap:5,
+                      padding:'5px 10px', borderRadius:20,
+                      background: d.status==='online' ? '#dcfce7' : '#f3f4f6',
+                    }}>
+                      <div style={{
+                        width:7, height:7, borderRadius:'50%',
+                        background: d.status==='online' ? '#059669' : '#9ca3af',
+                        boxShadow: d.status==='online' ? '0 0 0 3px rgba(5,150,105,0.2)' : 'none',
+                        animation: d.status==='online' ? 'pulse 2s infinite' : 'none',
+                      }}/>
+                      <span style={{ fontSize:11, fontWeight:700, color: d.status==='online' ? '#059669' : '#9ca3af' }}>
+                        {d.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* ── Premium: Zone naming + Voice control ── */}
-          {sub?.plan_name === 'premium' && devices.length > 0 && (
-            <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:12 }}>
-              {devices.map(d => (
-                <div key={d.id} style={{
-                  background:'#fff', borderRadius:16, padding:16,
-                  border:'1.5px solid #ede9fe',
-                  boxShadow:'0 2px 8px rgba(124,58,237,0.06)',
-                }}>
-                  <div style={{ fontWeight:700, fontSize:13, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                    <span>⚡</span>
-                    <span>{d.device_name} — Voice &amp; Zone Control</span>
-                    <span style={{ marginLeft:'auto', fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'2px 7px', borderRadius:20, fontWeight:600 }}>PREMIUM</span>
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    <ZoneNameEditor deviceId={d.id} />
-                    <VoiceButton deviceId={d.id} disabled={d.status !== 'online'} />
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
-          )}
+
+            {/* ── Premium: Zone naming + Voice control ── */}
+            {sub?.plan_name === 'premium' && devices.length > 0 && (
+              <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:12 }}>
+                {devices.map(d => (
+                  <div key={d.id} style={{
+                    background:'#fff', borderRadius:16, padding:16,
+                    border:'1.5px solid #ede9fe',
+                    boxShadow:'0 2px 8px rgba(124,58,237,0.06)',
+                  }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                      <span>⚡</span>
+                      <span>{d.device_name} — Voice &amp; Zone Control</span>
+                      <span style={{ marginLeft:'auto', fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'2px 7px', borderRadius:20, fontWeight:600 }}>PREMIUM</span>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                      <ZoneNameEditor deviceId={d.id} />
+                      <VoiceButton deviceId={d.id} disabled={d.status !== 'online'} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
