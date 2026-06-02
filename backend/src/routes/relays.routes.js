@@ -18,6 +18,7 @@ import { z }       from 'zod';
 import { query }   from '../db/pool.js';
 import { authUser, authAdmin, loadSubscription } from '../middleware/auth.js';
 import { asyncH, Errors } from '../utils/http.js';
+import { validate } from '../middleware/validate.js';
 import { randomUUID } from 'crypto';
 
 const router = Router();
