@@ -281,7 +281,7 @@ router.post('/:deviceId/request', authUser, validate(requestSchema), asyncH(asyn
   const { deviceId } = req.params;
   const { relay_key, message = '' } = req.body;
 
-  const LABELS: Record<string, string> = {
+  const LABELS = {
     relay6: 'MediSpray', relay7: 'Extra Zone 1', relay8: 'Extra Zone 2',
   };
   const label = LABELS[relay_key] ?? relay_key;
