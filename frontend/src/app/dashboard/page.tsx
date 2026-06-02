@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import type { Device, Subscription, Notification, Plan } from '@/lib/types';
+import type { Device, Subscription, Plan } from '@/lib/types';
 import VoiceButton from '@/components/VoiceButton';
 import ZoneNameEditor from '@/components/ZoneNameEditor';
 
@@ -253,7 +253,6 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [sub, setSub]       = useState<Subscription | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [notifs, setNotifs] = useState<Notification[]>([]);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
 
@@ -261,14 +260,12 @@ export default function DashboardPage() {
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
       try {
-        const [s, d, n] = await Promise.all([
+        const [s, d] = await Promise.all([
           api<{ subscription: Subscription | null; plan: Plan | null }>('/api/subscriptions/me'),
           api<{ devices: Device[] }>('/api/devices'),
-          api<{ notifications: Notification[] }>('/api/notifications'),
         ]);
         setSub(s.subscription);
         setDevices(d.devices);
-        setNotifs(n.notifications.slice(0, 3));
       } catch {}
       timer = setTimeout(load, 15000);
     };
@@ -470,7 +467,7 @@ export default function DashboardPage() {
         <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.15s', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           {[
             { icon:'📡', label:'Devices', val: devices.length, sub: devices.filter(d=>d.status==='online').length + ' online', color:'#059669' },
-            { icon:'🔔', label:'Alerts', val: notifs.length, sub: 'recent', color:'#7c3aed' },
+            { icon:'🌿', label:'Online', val: devices.filter(d=>d.status==='online').length, sub: 'active now', color:'#0284c7' },
             { icon:'💧', label:'Plan', val: sub.plan_name, sub: 'active', color: planColor, capitalize: true },
           ].map(s => (
             <div key={s.label} style={{
@@ -576,34 +573,37 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Recent alerts ── */}
-      {notifs.length > 0 && (
-        <div className="fade-up" style={{ animationDelay:'0.25s' }}>
-          <div style={{ fontWeight:800, color:'#1f2937', fontSize:15, marginBottom:10 }}>🔔 Recent Alerts</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {notifs.map((n, i) => (
-              <div key={n.id} className="notif-card" style={{
-                background:'#fff', borderRadius:14, padding:'12px 14px',
-                border:'1.5px solid #f1f5f9',
-                boxShadow:'0 2px 6px rgba(0,0,0,0.04)',
-                borderLeft:`4px solid ${planColor}`,
-                animationDelay:`${0.3 + i * 0.05}s`,
+      {/* ── Quick actions ── */}
+      <div className="fade-up" style={{ animationDelay:'0.25s', marginBottom:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {devices[0] && (
+            <Link href={`/device?id=${devices[0].id}`} style={{ textDecoration:'none' }}>
+              <div style={{
+                background:`linear-gradient(135deg,${planColor},${planDark})`,
+                borderRadius:16, padding:'14px 16px',
+                boxShadow:`0 4px 16px ${planColor}40`,
               }}>
-                <div style={{ display:'flex', gap:10 }}>
-                  <span style={{ fontSize:18 }}>🔔</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:'#1f2937', marginBottom:2 }}>{n.title}</div>
-                    <div style={{ fontSize:12, color:'#6b7280', marginBottom:4 }}>{n.message}</div>
-                    <div style={{ fontSize:10, color:'#9ca3af' }}>{new Date(n.created_at).toLocaleString('en-IN')}</div>
-                  </div>
-                </div>
+                <div style={{ fontSize:22, marginBottom:6 }}>💧</div>
+                <div style={{ fontWeight:800, fontSize:13, color:'#fff' }}>Control Device</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)', marginTop:2 }}>Manage valves & relays</div>
               </div>
-            ))}
-          </div>
+            </Link>
+          )}
+          <Link href="/schedules" style={{ textDecoration:'none' }}>
+            <div style={{
+              background:'#fff', borderRadius:16, padding:'14px 16px',
+              border:'1.5px solid #e5e7eb',
+              boxShadow:'0 2px 8px rgba(0,0,0,0.05)',
+            }}>
+              <div style={{ fontSize:22, marginBottom:6 }}>⏰</div>
+              <div style={{ fontWeight:800, fontSize:13, color:'#1f2937' }}>Schedules</div>
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Set watering times</div>
+            </div>
+          </Link>
         </div>
-      )}
+      </div>
 
-      <div style={{ height:16 }}/>
+      <div style={{ height:8 }}/>
     </AppShell>
   );
 }

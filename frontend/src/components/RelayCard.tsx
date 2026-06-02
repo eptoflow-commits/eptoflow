@@ -144,12 +144,7 @@ export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onComma
         })}
       </div>
 
-      {/* WiFi status relay — read-only */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50">
-        <span>📶</span>
-        <span className="text-xs font-medium text-gray-600">WiFi Status (Relay 5)</span>
-        <span className="ml-auto text-xs text-gray-400">Auto-managed by firmware</span>
-      </div>
+      {/* relay5 is WiFi indicator — firmware-controlled only, not shown to user */}
 
       {/* Premium add-on relays (activated) */}
       {activatedPremium.length > 0 && (
@@ -198,19 +193,49 @@ export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onComma
         </div>
       )}
 
-      {/* Locked premium relays — upgrade CTA */}
+      {/* Spare relay outputs — ₹50 each */}
       {lockedPremium.length > 0 && (
-        <div className="border border-dashed border-purple-200 rounded-xl p-3 space-y-2">
-          <p className="text-xs font-semibold text-purple-500">🔒 Premium Add-on Valves Available</p>
-          {lockedPremium.map((lic) => (
-            <div key={lic.relay_key} className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">{lic.label}</span>
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
-                ₹{lic.price_inr} to activate
-              </span>
+        <div style={{
+          background: 'linear-gradient(135deg,#fdf4ff,#f5f3ff)',
+          border: '1.5px solid #e9d5ff',
+          borderRadius: 14, padding: '14px 16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>⚡</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#6d28d9' }}>
+                {lockedPremium.length} Spare Relay Output{lockedPremium.length > 1 ? 's' : ''} Available
+              </div>
+              <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 1 }}>
+                Add extra valve zones to your setup
+              </div>
             </div>
-          ))}
-          <p className="text-xs text-gray-400">Contact your Eptoflow admin to activate additional valves.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {lockedPremium.map((lic) => (
+              <div key={lic.relay_key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#fff', borderRadius: 10, padding: '10px 12px',
+                border: '1px solid #ede9fe',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>💧</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{lic.label}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>Smart automation included</div>
+                  </div>
+                </div>
+                <div style={{
+                  background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                  color: '#fff', borderRadius: 8, padding: '5px 12px',
+                  fontSize: 12, fontWeight: 800,
+                }}>₹50</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 10, textAlign: 'center' }}>
+            Contact Eptoflow to activate — each output includes smart automation
+          </div>
         </div>
       )}
     </div>
