@@ -373,7 +373,7 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
       </div>
 
       {/* Two metric cards side by side */}
-      <div style={{ background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#f1f5f9' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#f1f5f9' }}>
 
         {/* Moisture card */}
         <div style={{ background: '#fff', padding: '20px 16px' }}>
