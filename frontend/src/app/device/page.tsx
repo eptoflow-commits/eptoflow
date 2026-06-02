@@ -83,6 +83,9 @@ const OUTPUT_META: Record<string, { icon: string; color: string; glow: string; b
   valve2: { icon: '🌿', color: '#0891b2', glow: 'rgba(8,145,178,0.35)', bg: '#ecfeff', label: 'Occasional Watering' },
   valve3: { icon: '🌊', color: '#7c3aed', glow: 'rgba(124,58,237,0.35)', bg: '#f5f3ff', label: 'Misting' },
   relay1: { icon: '⚡', color: '#d97706', glow: 'rgba(217,119,6,0.35)',  bg: '#fffbeb', label: 'Motor / Light' },
+  relay6: { icon: '💊', color: '#e11d48', glow: 'rgba(225,29,72,0.35)',  bg: '#fff1f2', label: 'MediSpray' },
+  relay7: { icon: '💧', color: '#0369a1', glow: 'rgba(3,105,161,0.35)',  bg: '#eff6ff', label: 'Extra Zone 1' },
+  relay8: { icon: '💧', color: '#0369a1', glow: 'rgba(3,105,161,0.35)',  bg: '#eff6ff', label: 'Extra Zone 2' },
 };
 
 /* ── Toggle switch ───────────────────────────────────────────────── */
@@ -521,10 +524,13 @@ function DeviceContent({ id }: { id: string }) {
     setOptimistic(s => ({ ...s, [key]: next }));
     if (key === 'relay1') send(next ? 'relay_on' : 'relay_off');
     else send(next ? 'valve_on' : 'valve_off', { target: key });
+    // relay6/7/8 handled by valve_on/valve_off with target
   };
 
   const valves = outputs.filter((o:string) => o.startsWith('valve'));
   const hasRelay = outputs.includes('relay1');
+  // Addon valves activated by admin (relay6/7/8) — shown in Controls with schedule
+  const addonValves = availableValves.filter(k => ['relay6','relay7','relay8'].includes(k));
 
   return (
     <AppShell>
@@ -587,6 +593,14 @@ function DeviceContent({ id }: { id: string }) {
             onScheduleSaved={load}
           />
         )}
+        {addonValves.map(k => (
+          <OutputCard key={k} outputKey={k}
+            isOn={isOn(k)} loading={loadingKey===k}
+            isOnline={isOnline} deviceId={id}
+            onToggle={()=>toggle(k)}
+            onScheduleSaved={load}
+          />
+        ))}
       </div>
 
       {/* ── Stop all ── */}

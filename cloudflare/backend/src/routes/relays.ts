@@ -150,14 +150,16 @@ app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireA
   }
 
   const rule = parseRule(await c.req.json().catch(() => ({})));
-  await ensureTables(c.env.DB);
 
-  // Use DELETE + INSERT to avoid ON CONFLICT constraint dependency
-  await c.env.DB.batch([
-    c.env.DB.prepare(
+  try {
+    await ensureTables(c.env.DB);
+
+    // DELETE then INSERT — no UNIQUE constraint dependency
+    await c.env.DB.prepare(
       `DELETE FROM automation_rules WHERE device_id=?1 AND valve_key=?2`
-    ).bind(deviceId, valveKey),
-    c.env.DB.prepare(
+    ).bind(deviceId, valveKey).run();
+
+    await c.env.DB.prepare(
       `INSERT INTO automation_rules
         (id, device_id, user_id, valve_key, enabled, mode,
          on_moisture_lt, on_temp_gt, on_logic,
@@ -167,11 +169,16 @@ app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireA
     ).bind(
       newId(), deviceId, u.id, valveKey,
       rule.enabled ? 1 : 0, rule.mode,
-      rule.on_moisture_lt, rule.on_temp_gt, rule.on_logic,
-      rule.off_moisture_gt, rule.off_temp_lt, rule.off_logic,
+      rule.on_moisture_lt ?? null, rule.on_temp_gt ?? null, rule.on_logic,
+      rule.off_moisture_gt ?? null, rule.off_temp_lt ?? null, rule.off_logic,
       rule.schedule_start, rule.schedule_end, rule.max_duration_s,
-    ),
-  ]);
+    ).run();
+  } catch (dbErr: any) {
+    // Return the real DB error so we can diagnose it
+    throw new (await import('../lib/errors')).ApiError(
+      500, 'DB_ERROR', `DB error saving rule: ${dbErr?.message ?? String(dbErr)}`
+    );
+  }
 
   // Push updated rule to device directly (bypasses enqueue validation — sync_automation is internal)
   await c.env.DB.prepare(
