@@ -31,12 +31,134 @@ type Props = {
   onCommand?: () => void;
 };
 
+const FRIENDLY_LABELS: Record<string, string> = {
+  relay6: 'MediSpray', relay7: 'Extra Zone 1', relay8: 'Extra Zone 2',
+};
+
 const CORE_RELAYS = [
   { key: 'valve1', label: 'Daily Watering',      icon: '🌿', type: 'valve' },
   { key: 'valve2', label: 'Occasional Watering', icon: '🌱', type: 'valve' },
   { key: 'valve3', label: 'Misting',             icon: '🌊', type: 'valve' },
   { key: 'relay1', label: 'Motor / Light',       icon: '⚙️', type: 'relay' },
 ];
+
+function LockedOutputs({ deviceId, lockedPremium }: { deviceId: string; lockedPremium: RelayLicense[] }) {
+  const [requested, setRequested] = useState<Record<string, boolean>>({});
+  const [busy, setBusy]           = useState<string | null>(null);
+  const [expanded, setExpanded]   = useState<string | null>(null);
+  const [msgs, setMsgs]           = useState<Record<string, string>>({});
+
+  const request = async (relayKey: string, msg: string) => {
+    setBusy(relayKey);
+    try {
+      await api(`/api/relays/${deviceId}/request`, {
+        method: 'POST',
+        body: JSON.stringify({ relay_key: relayKey, message: msg }),
+      });
+      setRequested(r => ({ ...r, [relayKey]: true }));
+      setExpanded(null);
+    } catch {
+      setRequested(r => ({ ...r, [relayKey]: false }));
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#fdf4ff,#f5f3ff)',
+      border: '1.5px solid #e9d5ff', borderRadius: 14, padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 20 }}>⚡</span>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 13, color: '#6d28d9' }}>
+            {lockedPremium.length} Extra Output{lockedPremium.length > 1 ? 's' : ''} Available
+          </div>
+          <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 1 }}>₹50 each · Includes smart automation</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {lockedPremium.map((lic) => {
+          const label = FRIENDLY_LABELS[lic.relay_key] ?? lic.label;
+          const icon  = lic.relay_key === 'relay6' ? '💊' : '💧';
+          const done  = requested[lic.relay_key];
+          const open  = expanded === lic.relay_key;
+
+          return (
+            <div key={lic.relay_key} style={{
+              background: '#fff', borderRadius: 10, border: '1px solid #ede9fe', overflow: 'hidden',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>{icon}</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{label}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>₹50 to activate</div>
+                  </div>
+                </div>
+                {done ? (
+                  <span style={{ fontSize: 11, color: '#059669', fontWeight: 700 }}>✓ Requested</span>
+                ) : (
+                  <button onClick={() => setExpanded(open ? null : lic.relay_key)} style={{
+                    background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                    color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>Request</button>
+                )}
+              </div>
+
+              {open && !done && (
+                <RequestForm
+                  label={label}
+                  busy={busy === lic.relay_key}
+                  msg={msgs[lic.relay_key] ?? ''}
+                  onMsg={v => setMsgs(m => ({ ...m, [lic.relay_key]: v }))}
+                  onSubmit={() => request(lic.relay_key, msgs[lic.relay_key] ?? '')}
+                  onCancel={() => setExpanded(null)}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RequestForm({ label, busy, msg, onMsg, onSubmit, onCancel }: {
+  label: string; busy: boolean; msg: string;
+  onMsg: (v: string) => void; onSubmit: () => void; onCancel: () => void;
+}) {
+  return (
+    <div style={{ padding: '0 12px 12px', borderTop: '1px solid #f3f4f6' }}>
+      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 10, marginBottom: 6 }}>
+        Send a request to your admin to activate <strong>{label}</strong>:
+      </div>
+      <textarea
+        value={msg}
+        onChange={e => onMsg(e.target.value)}
+        placeholder="Optional: add a note (e.g. plant type, location…)"
+        rows={2}
+        style={{
+          width: '100%', borderRadius: 8, border: '1.5px solid #e9d5ff',
+          padding: '7px 10px', fontSize: 12, resize: 'none',
+          outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <button onClick={onSubmit} disabled={busy} style={{
+          flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
+          background: busy ? '#e5e7eb' : 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+          color: busy ? '#9ca3af' : '#fff', fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer',
+        }}>{busy ? 'Sending…' : 'Send Request'}</button>
+        <button onClick={onCancel} style={{
+          padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb',
+          background: '#fff', fontSize: 12, color: '#6b7280', cursor: 'pointer',
+        }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onCommand }: Props) {
   const [licenses, setLicenses] = useState<RelayLicense[]>([]);
@@ -193,50 +315,9 @@ export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onComma
         </div>
       )}
 
-      {/* Spare relay outputs — ₹50 each */}
+      {/* Spare outputs — request to activate */}
       {lockedPremium.length > 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg,#fdf4ff,#f5f3ff)',
-          border: '1.5px solid #e9d5ff',
-          borderRadius: 14, padding: '14px 16px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 20 }}>⚡</span>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#6d28d9' }}>
-                {lockedPremium.length} Spare Relay Output{lockedPremium.length > 1 ? 's' : ''} Available
-              </div>
-              <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 1 }}>
-                Add extra valve zones to your setup
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {lockedPremium.map((lic) => (
-              <div key={lic.relay_key} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#fff', borderRadius: 10, padding: '10px 12px',
-                border: '1px solid #ede9fe',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>💧</span>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{lic.label}</div>
-                    <div style={{ fontSize: 10, color: '#9ca3af' }}>Smart automation included</div>
-                  </div>
-                </div>
-                <div style={{
-                  background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
-                  color: '#fff', borderRadius: 8, padding: '5px 12px',
-                  fontSize: 12, fontWeight: 800,
-                }}>₹50</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 10, textAlign: 'center' }}>
-            Contact Eptoflow to activate — each output includes smart automation
-          </div>
-        </div>
+        <LockedOutputs deviceId={deviceId} lockedPremium={lockedPremium} />
       )}
     </div>
   );

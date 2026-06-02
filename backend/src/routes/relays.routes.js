@@ -96,7 +96,7 @@ router.get('/:deviceId/licenses', authUser, loadSubscription(), asyncH(async (re
     activated:    !!(existing[k]?.activated),
     activated_at: existing[k]?.activated_at ?? null,
     amount_paid:  existing[k]?.amount_paid  ?? 0,
-    label:        k === 'relay6' ? 'Medicine Spraying' : k === 'relay7' ? 'Extra Zone 1' : 'Extra Zone 2',
+    label:        k === 'relay6' ? 'MediSpray' : k === 'relay7' ? 'Extra Zone 1' : 'Extra Zone 2',
     price_inr:    50,
   }));
 
@@ -268,6 +268,77 @@ router.post('/:deviceId/deactivate', authAdmin, asyncH(async (req, res) => {
   }
 
   res.json({ ok: true, relay_key, activated: false });
+}));
+
+// ─── User: POST /:deviceId/request — request activation of a premium output ──
+
+const requestSchema = z.object({
+  relay_key: z.enum(['relay6', 'relay7', 'relay8']),
+  message:   z.string().max(500).optional(),
+});
+
+router.post('/:deviceId/request', authUser, validate(requestSchema), asyncH(async (req, res) => {
+  const { deviceId } = req.params;
+  const { relay_key, message = '' } = req.body;
+
+  const LABELS: Record<string, string> = {
+    relay6: 'MediSpray', relay7: 'Extra Zone 1', relay8: 'Extra Zone 2',
+  };
+  const label = LABELS[relay_key] ?? relay_key;
+
+  // Store as an admin notification
+  await query(`
+    CREATE TABLE IF NOT EXISTS relay_requests (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_id   UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      user_id     UUID NOT NULL REFERENCES users(id),
+      relay_key   VARCHAR(20) NOT NULL,
+      label       VARCHAR(80) NOT NULL,
+      message     TEXT,
+      status      VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(() => {});
+
+  await query(
+    `INSERT INTO relay_requests (device_id, user_id, relay_key, label, message)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [deviceId, req.user.id, relay_key, label, message || null]
+  );
+
+  // Notify admin via notifications table
+  await query(`
+    INSERT INTO notifications (user_id, title, message, type)
+    SELECT id, 'New output request', $1, 'relay_request'
+    FROM users WHERE role='admin' LIMIT 5
+  `, [`User requested "${label}" for device ${deviceId}. Message: ${message || 'none'}`]).catch(() => {});
+
+  res.json({ ok: true, message: 'Request submitted. Admin will activate it shortly.' });
+}));
+
+// ─── Admin: GET /requests — list all pending requests ────────────────────────
+
+router.get('/requests', authAdmin, asyncH(async (req, res) => {
+  await query(`
+    CREATE TABLE IF NOT EXISTS relay_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id),
+      relay_key VARCHAR(20) NOT NULL, label VARCHAR(80) NOT NULL,
+      message TEXT, status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(() => {});
+
+  const { rows } = await query(`
+    SELECT rr.*, u.email, u.full_name, d.device_uid, d.device_name
+    FROM relay_requests rr
+    JOIN users u ON u.id = rr.user_id
+    JOIN devices d ON d.id = rr.device_id
+    WHERE rr.status = 'pending'
+    ORDER BY rr.created_at DESC
+  `);
+  res.json({ requests: rows });
 }));
 
 // ─── Admin: GET /:deviceId/push-config ───────────────────────────────────────

@@ -37,7 +37,7 @@ const DEFAULT_RULE = (valveKey: string): Rule => ({
 
 const VALVE_LABELS: Record<string, string> = {
   valve1: '🌿 Daily Watering',      valve2: '🌱 Occasional Watering', valve3: '🌊 Misting',
-  relay1: '⚙️ Motor / Light',       relay6: '💊 Medicine Spraying',   relay7: '💧 Extra Zone 1', relay8: '💧 Extra Zone 2',
+  relay1: '⚙️ Motor / Light',       relay6: '💊 MediSpray',   relay7: '💧 Extra Zone 1', relay8: '💧 Extra Zone 2',
 };
 
 type Props = { deviceId: string; availableValves: string[]; zoneNames?: Record<string, string> };
