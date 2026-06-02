@@ -24,7 +24,7 @@ function SensorAlerts({ deviceId }: { deviceId: string }) {
   useEffect(() => {
     if (!deviceId) return;
     api<{ alerts: SensorAlert[] }>(`/api/sensors/${deviceId}/alerts`)
-      .then(r => setAlerts(r.alerts))
+      .then(r => setAlerts(Array.isArray(r?.alerts) ? r.alerts : []))
       .catch(() => {});
   }, [deviceId]);
 

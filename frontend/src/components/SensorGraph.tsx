@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 
 /**
@@ -21,25 +21,29 @@ export default function SensorGraph({ deviceId }: Props) {
   const [view,     setView]     = useState<'moisture' | 'temp'>('moisture');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const r = await api<{ latest: Latest | null; sparkline: Reading[] }>(
         `/api/sensors/${deviceId}`
       );
-      setLatest(r.latest);
-      setReadings(r.sparkline ?? []);
-    } catch {}
-    finally { setLoading(false); }
-  };
+      setLatest(r?.latest ?? null);
+      setReadings(Array.isArray(r?.sparkline) ? r.sparkline : []);
+    } catch {
+      // network/API error — keep showing last data
+    } finally {
+      setLoading(false);
+    }
+  }, [deviceId]);
 
   useEffect(() => {
     fetchData();
     const iv = setInterval(fetchData, 30000); // refresh every 30s
     return () => clearInterval(iv);
-  }, [deviceId]);
+  }, [fetchData]);
 
   // Draw canvas graph whenever data or view changes
   useEffect(() => {
+    try {
     const canvas = canvasRef.current;
     if (!canvas || readings.length < 2) return;
     const ctx = canvas.getContext('2d');
@@ -51,7 +55,7 @@ export default function SensorGraph({ deviceId }: Props) {
 
     const values = readings.map((r) =>
       view === 'moisture' ? r.moisture_pct : r.temp_c
-    ).filter((v): v is number => v !== null && v !== undefined);
+    ).filter((v): v is number => typeof v === 'number' && isFinite(v));
 
     if (values.length < 2) return;
 
@@ -95,6 +99,9 @@ export default function SensorGraph({ deviceId }: Props) {
     ctx.fillText(`${minV.toFixed(1)}`, 2, H - pad.bottom + 12);
     ctx.textAlign   = 'right';
     ctx.fillText(`${maxV.toFixed(1)}`, W - 2, pad.top + 10);
+    } catch (e) {
+      console.error('[SensorGraph] canvas draw error:', e);
+    }
   }, [readings, view]);
 
   const moisture = latest?.moisture_pct;
