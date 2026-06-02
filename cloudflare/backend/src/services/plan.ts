@@ -22,7 +22,9 @@ export const PLAN_FEATURES: Record<PlanName, {
     hasMoisture: true,
     hasVoice: true,
     moistureAutomation: true,
-    allowedOutputs: ['valve1', 'valve2', 'valve3', 'relay1'],
+    // relay6/7/8 are premium add-ons activated separately; include them so
+    // enqueue() doesn't block commands for activated addon relays
+    allowedOutputs: ['valve1', 'valve2', 'valve3', 'relay1', 'relay6', 'relay7', 'relay8'],
   },
 };
 
