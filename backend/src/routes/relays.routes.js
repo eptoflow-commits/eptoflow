@@ -96,7 +96,7 @@ router.get('/:deviceId/licenses', authUser, loadSubscription(), asyncH(async (re
     activated:    !!(existing[k]?.activated),
     activated_at: existing[k]?.activated_at ?? null,
     amount_paid:  existing[k]?.amount_paid  ?? 0,
-    label:        `Add-on Valve ${k.replace('relay', '')}`,
+    label:        k === 'relay6' ? 'Medicine Spraying' : k === 'relay7' ? 'Extra Zone 1' : 'Extra Zone 2',
     price_inr:    50,
   }));
 

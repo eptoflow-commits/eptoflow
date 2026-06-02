@@ -32,10 +32,10 @@ type Props = {
 };
 
 const CORE_RELAYS = [
-  { key: 'valve1', label: 'Zone 1',     icon: '🌿', type: 'valve' },
-  { key: 'valve2', label: 'Zone 2',     icon: '🌱', type: 'valve' },
-  { key: 'valve3', label: 'Zone 3',     icon: '🌾', type: 'valve' },
-  { key: 'relay1', label: 'Motor',      icon: '⚙️', type: 'relay' },
+  { key: 'valve1', label: 'Daily Watering',      icon: '🌿', type: 'valve' },
+  { key: 'valve2', label: 'Occasional Watering', icon: '🌱', type: 'valve' },
+  { key: 'valve3', label: 'Misting',             icon: '🌊', type: 'valve' },
+  { key: 'relay1', label: 'Motor / Light',       icon: '⚙️', type: 'relay' },
 ];
 
 export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onCommand }: Props) {
@@ -90,7 +90,7 @@ export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onComma
   return (
     <div className="card space-y-4">
       <div className="flex items-center justify-between">
-        <div className="font-medium">Relay control</div>
+        <div className="font-medium">Controls</div>
         <button onClick={stopAll} disabled={loading === 'stop_all'}
           className="text-xs px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg font-semibold hover:bg-red-100 disabled:opacity-50 transition">
           🛑 Stop All
@@ -149,7 +149,7 @@ export default function RelayCard({ deviceId, isPremium, zoneNames = {}, onComma
       {/* Premium add-on relays (activated) */}
       {activatedPremium.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-purple-600 mb-2">⚡ Premium Add-ons</p>
+          <p className="text-xs font-semibold text-purple-600 mb-2">⚡ Extra Zones</p>
           <div className="grid grid-cols-2 gap-2">
             {activatedPremium.map((lic) => {
               const on   = isOn(lic.relay_key);

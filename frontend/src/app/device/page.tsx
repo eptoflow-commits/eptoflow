@@ -79,10 +79,10 @@ const DURATION_PRESETS = [
 const DAYS_SHORT = ['M','T','W','T','F','S','S'];
 
 const OUTPUT_META: Record<string, { icon: string; color: string; glow: string; bg: string; label: string }> = {
-  valve1: { icon: '🪴', color: '#059669', glow: 'rgba(5,150,105,0.35)', bg: '#ecfdf5', label: 'Daily Water Plants' },
-  valve2: { icon: '🌿', color: '#0891b2', glow: 'rgba(8,145,178,0.35)', bg: '#ecfeff', label: 'Occasional Water Plants' },
+  valve1: { icon: '🪴', color: '#059669', glow: 'rgba(5,150,105,0.35)', bg: '#ecfdf5', label: 'Daily Watering' },
+  valve2: { icon: '🌿', color: '#0891b2', glow: 'rgba(8,145,178,0.35)', bg: '#ecfeff', label: 'Occasional Watering' },
   valve3: { icon: '🌊', color: '#7c3aed', glow: 'rgba(124,58,237,0.35)', bg: '#f5f3ff', label: 'Misting' },
-  relay1: { icon: '⚡', color: '#d97706', glow: 'rgba(217,119,6,0.35)',  bg: '#fffbeb', label: 'Motor or Light' },
+  relay1: { icon: '⚡', color: '#d97706', glow: 'rgba(217,119,6,0.35)',  bg: '#fffbeb', label: 'Motor / Light' },
 };
 
 /* ── Toggle switch ───────────────────────────────────────────────── */
