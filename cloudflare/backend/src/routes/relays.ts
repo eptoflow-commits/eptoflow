@@ -128,72 +128,63 @@ function parseRule(body: any) {
 }
 
 /** PUT /api/relays/:deviceId/automation/:valveKey — create or replace rule */
-app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireActive: true }), async (c) => {
-  const u        = c.get('user')!;
-  const deviceId = c.req.param('deviceId');
-  const valveKey = c.req.param('valveKey') as string;
-
-  if (!ALL_VALVES.includes(valveKey as any)) throw Err.badRequest('Invalid valve key');
-
-  const device = await c.env.DB.prepare(
-    `SELECT id FROM devices WHERE id=?1 AND user_id=?2`
-  ).bind(deviceId, u.id).first<any>();
-  if (!device) throw Err.notFound('Device');
-
-  // Premium relay must be activated first
-  if (PREMIUM_RELAYS.includes(valveKey as any)) {
-    await ensureTables(c.env.DB);
-    const lic = await c.env.DB.prepare(
-      `SELECT activated FROM relay_licenses WHERE device_id=?1 AND relay_key=?2`
-    ).bind(deviceId, valveKey).first<any>();
-    if (!lic?.activated) throw Err.forbidden(`${valveKey} is not activated on this device`);
-  }
-
-  const rule = parseRule(await c.req.json().catch(() => ({})));
-
+app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription(), async (c) => {
   try {
+    const u        = c.get('user')!;
+    const deviceId = c.req.param('deviceId');
+    const valveKey = c.req.param('valveKey') as string;
+
+    if (!ALL_VALVES.includes(valveKey as any))
+      return c.json({ error: { code: 'BAD_REQUEST', message: `Invalid valve key: ${valveKey}` } }, 400);
+
+    const device = await c.env.DB.prepare(
+      `SELECT id FROM devices WHERE id=?1 AND user_id=?2`
+    ).bind(deviceId, u.id).first<any>();
+    if (!device)
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Device not found' } }, 404);
+
+    const rule = parseRule(await c.req.json().catch(() => ({})));
+
     await ensureTables(c.env.DB);
 
-    // DELETE then INSERT — no UNIQUE constraint dependency
     await c.env.DB.prepare(
       `DELETE FROM automation_rules WHERE device_id=?1 AND valve_key=?2`
     ).bind(deviceId, valveKey).run();
 
     await c.env.DB.prepare(
       `INSERT INTO automation_rules
-        (id, device_id, user_id, valve_key, enabled, mode,
-         on_moisture_lt, on_temp_gt, on_logic,
-         off_moisture_gt, off_temp_lt, off_logic,
-         schedule_start, schedule_end, max_duration_s)
+         (id, device_id, user_id, valve_key, enabled, mode,
+          on_moisture_lt, on_temp_gt, on_logic,
+          off_moisture_gt, off_temp_lt, off_logic,
+          schedule_start, schedule_end, max_duration_s)
        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)`
     ).bind(
       newId(), deviceId, u.id, valveKey,
       rule.enabled ? 1 : 0, rule.mode,
-      rule.on_moisture_lt ?? null, rule.on_temp_gt ?? null, rule.on_logic,
-      rule.off_moisture_gt ?? null, rule.off_temp_lt ?? null, rule.off_logic,
+      rule.on_moisture_lt, rule.on_temp_gt, rule.on_logic,
+      rule.off_moisture_gt, rule.off_temp_lt, rule.off_logic,
       rule.schedule_start, rule.schedule_end, rule.max_duration_s,
     ).run();
-  } catch (dbErr: any) {
-    // Return the real DB error so we can diagnose it
-    throw new (await import('../lib/errors')).ApiError(
-      500, 'DB_ERROR', `DB error saving rule: ${dbErr?.message ?? String(dbErr)}`
-    );
+
+    // Sync rule to device (non-fatal)
+    await c.env.DB.prepare(
+      `INSERT INTO commands (id, device_id, user_id, command_type, payload, source)
+       VALUES (?1,?2,?3,'sync_automation',?4,'automation')`
+    ).bind(newId(), deviceId, u.id, JSON.stringify({ valve_key: valveKey, rule }))
+     .run().catch(() => {});
+
+    const saved = await c.env.DB.prepare(
+      `SELECT * FROM automation_rules WHERE device_id=?1 AND valve_key=?2`
+    ).bind(deviceId, valveKey).first<any>();
+
+    return c.json({ rule: saved }, 201);
+
+  } catch (e: any) {
+    // Always return the real error — never hide it as "Internal error"
+    const msg = e?.message ?? String(e);
+    console.error('[automation PUT]', msg);
+    return c.json({ error: { code: 'SERVER_ERROR', message: msg } }, 500);
   }
-
-  // Push updated rule to device directly (bypasses enqueue validation — sync_automation is internal)
-  await c.env.DB.prepare(
-    `INSERT INTO commands (id, device_id, user_id, command_type, payload, source)
-     VALUES (?1,?2,?3,'sync_automation',?4,'automation')`
-  ).bind(
-    newId(), deviceId, u.id,
-    JSON.stringify({ valve_key: valveKey, rule }),
-  ).run().catch(() => {}); // non-fatal
-
-  const saved = await c.env.DB.prepare(
-    `SELECT * FROM automation_rules WHERE device_id=?1 AND valve_key=?2`
-  ).bind(deviceId, valveKey).first<any>();
-
-  return c.json({ rule: saved }, 201);
 });
 
 /** DELETE /api/relays/:deviceId/automation/:valveKey */
