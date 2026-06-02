@@ -248,10 +248,16 @@ private:
     if (strcmp(type, "water_for") == 0) {
       const char* target = payload["target"];
       uint32_t    dur    = payload["duration"] | 300;
+      // MediSpray (relay6) hard cap: 10 minutes
+      if (target && strcmp(target, "relay6") == 0 && dur > 600) dur = 600;
       return Relays.turnOn(target, dur * 1000UL);
     }
     if (strcmp(type, "valve_on") == 0) {
-      return Relays.turnOn(payload["target"]);
+      const char* target = payload["target"];
+      // MediSpray: treat valve_on as water_for with 10-min cap
+      if (target && strcmp(target, "relay6") == 0)
+        return Relays.turnOn(target, 600 * 1000UL);
+      return Relays.turnOn(target);
     }
     if (strcmp(type, "valve_off") == 0) {
       Relays.turnOff(payload["target"]);

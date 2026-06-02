@@ -32,7 +32,8 @@ const DEFAULT_RULE = (valveKey: string): Rule => ({
   valve_key: valveKey, enabled: true, mode: 'auto',
   on_moisture_lt: null, on_temp_gt: null, on_logic: 'AND',
   off_moisture_gt: null, off_temp_lt: null, off_logic: 'AND',
-  schedule_start: null, schedule_end: null, max_duration_s: 1800,
+  schedule_start: null, schedule_end: null,
+  max_duration_s: valveKey === 'relay6' ? 600 : 1800,
 });
 
 const VALVE_LABELS: Record<string, string> = {
@@ -218,16 +219,20 @@ export default function AutomationRuleBuilder({ deviceId, availableValves, zoneN
                     {/* Max duration */}
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-gray-500 w-32">Max run time</span>
-                      <select value={r.max_duration_s}
-                        onChange={(e) => updateField(key, 'max_duration_s', parseInt(e.target.value))}
-                        className="border border-gray-300 rounded px-2 py-1 text-xs">
-                        <option value={300}>5 min</option>
-                        <option value={600}>10 min</option>
-                        <option value={900}>15 min</option>
-                        <option value={1800}>30 min</option>
-                        <option value={3600}>1 hour</option>
-                        <option value={7200}>2 hours</option>
-                      </select>
+                      {key === 'relay6' ? (
+                        <span className="text-xs text-amber-600 font-semibold">⏱ 10 min max (MediSpray)</span>
+                      ) : (
+                        <select value={r.max_duration_s}
+                          onChange={(e) => updateField(key, 'max_duration_s', parseInt(e.target.value))}
+                          className="border border-gray-300 rounded px-2 py-1 text-xs">
+                          <option value={300}>5 min</option>
+                          <option value={600}>10 min</option>
+                          <option value={900}>15 min</option>
+                          <option value={1800}>30 min</option>
+                          <option value={3600}>1 hour</option>
+                          <option value={7200}>2 hours</option>
+                        </select>
+                      )}
                     </div>
                   </>
                 )}

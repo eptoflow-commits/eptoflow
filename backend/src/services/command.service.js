@@ -15,7 +15,8 @@ export const COMMAND_TYPES = new Set([
   'reboot',             // payload: {}
 ]);
 
-export const SAFE_MAX_DURATION = 30 * 60; // 30 minutes absolute ceiling
+export const SAFE_MAX_DURATION     = 30 * 60; // 30 minutes absolute ceiling
+export const MEDISPRAY_MAX_DURATION = 10 * 60; // MediSpray (relay6) hard cap: 10 minutes
 
 /**
  * Validates the command against plan and safety rules, then enqueues it.
@@ -47,7 +48,19 @@ export async function enqueueCommand({ userId, deviceId, command, source }) {
   if (type === 'water_for') {
     const dur = parseInt(payload.duration, 10);
     if (!Number.isFinite(dur) || dur <= 0) throw Errors.badRequest('duration must be > 0 seconds');
-    if (dur > SAFE_MAX_DURATION) throw Errors.badRequest(`duration exceeds safety max (${SAFE_MAX_DURATION}s)`);
+    const maxDur = target === 'relay6' ? MEDISPRAY_MAX_DURATION : SAFE_MAX_DURATION;
+    if (dur > maxDur) throw Errors.badRequest(
+      target === 'relay6'
+        ? `MediSpray maximum run time is 10 minutes (${MEDISPRAY_MAX_DURATION}s)`
+        : `Duration exceeds safety maximum (${SAFE_MAX_DURATION}s)`
+    );
+  }
+
+  // MediSpray (relay6): also cap valve_on to auto-off after 10 minutes
+  if ((type === 'valve_on' || type === 'relay_on') && target === 'relay6') {
+    // Convert to water_for with capped duration so device auto-stops
+    command.command_type = 'water_for';
+    payload.duration = MEDISPRAY_MAX_DURATION;
   }
 
   const { rows } = await query(
