@@ -254,12 +254,11 @@ export default function DashboardPage() {
   const [sub, setSub]       = useState<Subscription | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [notifs, setNotifs] = useState<Notification[]>([]);
-  const [weather, setWeather] = useState<Weather | null | 'loading'>('loading');
-  const [mounted, setMounted] = useState(false);
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-    let timer: any;
+    let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
       try {
         const [s, d, n] = await Promise.all([
@@ -274,7 +273,7 @@ export default function DashboardPage() {
       timer = setTimeout(load, 15000);
     };
     load();
-    fetchWeather().then(w => setWeather(w));
+    fetchWeather().then(w => { setWeather(w); setWeatherLoading(false); });
     return () => clearTimeout(timer);
   }, []);
 
@@ -330,7 +329,7 @@ export default function DashboardPage() {
 
       {/* ── Weather Card ── */}
       <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.05s' }}>
-        {weather === 'loading' ? (
+        {weatherLoading ? (
           <div style={{ borderRadius:20, padding:'18px 20px', background:'#f1f5f9', height:100 }} className="shimmer-bg"/>
         ) : weather === null ? (
           <div style={{
@@ -343,7 +342,7 @@ export default function DashboardPage() {
               <div style={{ fontSize:13, color:'#166534', fontWeight:700 }}>Weather unavailable</div>
               <div style={{ fontSize:11, color:'#15803d', marginTop:2 }}>Check your internet connection</div>
             </div>
-            <button onClick={() => { setWeather('loading'); fetchWeather().then(w => setWeather(w)); }}
+            <button onClick={() => { setWeatherLoading(true); fetchWeather().then(w => { setWeather(w); setWeatherLoading(false); }); }}
               style={{ padding:'8px 14px', borderRadius:10, border:'none', background:'#059669', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
               Retry
             </button>
@@ -399,7 +398,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Air Quality Card ── */}
-      {weather && weather !== 'loading' && (
+      {!weatherLoading && weather && (
         <AqiCard weather={weather} />
       )}
 
