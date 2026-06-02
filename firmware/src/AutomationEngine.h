@@ -95,12 +95,21 @@ public:
 
   // ── Tick — call every AUTO_ENGINE_INTERVAL_MS ───────────────────────────
   void tick(const SensorReading& sensor, const String& utcTime) {
-    if (!sensor.valid) return; // no sensor data — can't evaluate rules
+    // sensor.valid check moved per-rule below — rules with no sensor
+    // conditions (schedule-only) must still run even when sensor is offline
 
     for (int i = 0; i < _ruleCount; i++) {
       AutoRule& r = _rules[i];
       if (!r.enabled || !r.isAuto) continue;
       if (!Relays.isActivated(r.valve_key)) continue;
+
+      // If this rule needs sensor data but sensor is not valid, skip it
+      bool needsSensor = (r.on_moisture_lt >= 0 || r.on_temp_gt >= 0 ||
+                          r.off_moisture_gt >= 0 || r.off_temp_lt >= 0);
+      if (needsSensor && !sensor.valid) {
+        Serial.printf("[auto] %s skipped — sensor offline\n", r.valve_key);
+        continue;
+      }
 
       // Time window check
       if (strlen(r.schedule_start) > 0 && strlen(r.schedule_end) > 0) {
@@ -124,17 +133,19 @@ public:
         }
       }
 
+      float m = sensor.valid ? sensor.moisture_pct : -1.0f;
+      float t = sensor.valid ? sensor.temp_c       : -99.0f;
+
       // ── Evaluate OFF condition ────────────────────────────────────────
       if (valveOn) {
         bool off = evalCondition(
-          r.off_moisture_gt, r.off_temp_lt,
-          sensor.moisture_pct, sensor.temp_c,
+          r.off_moisture_gt, r.off_temp_lt, m, t,
           r.off_and_logic,
           false /* off = greater-than for moisture, less-than for temp */
         );
         if (off) {
           Serial.printf("[auto] %s OFF by rule (M=%.1f%% T=%.1f°C)\n",
-            r.valve_key, sensor.moisture_pct, sensor.temp_c);
+            r.valve_key, m, t);
           Relays.turnOff(r.valve_key);
           r.running = false;
         }
@@ -143,14 +154,13 @@ public:
 
       // ── Evaluate ON condition ─────────────────────────────────────────
       bool on = evalCondition(
-        r.on_moisture_lt, r.on_temp_gt,
-        sensor.moisture_pct, sensor.temp_c,
+        r.on_moisture_lt, r.on_temp_gt, m, t,
         r.on_and_logic,
         true /* on = less-than for moisture, greater-than for temp */
       );
       if (on) {
         Serial.printf("[auto] %s ON by rule (M=%.1f%% T=%.1f°C)\n",
-          r.valve_key, sensor.moisture_pct, sensor.temp_c);
+          r.valve_key, m, t);
         Relays.turnOn(r.valve_key, r.max_duration_s * 1000UL);
         r.running     = true;
         r.run_start_ms = millis();

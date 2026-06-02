@@ -167,12 +167,14 @@ app.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireA
     rule.schedule_start, rule.schedule_end, rule.max_duration_s,
   ).run();
 
-  // Push updated config to device
-  await enqueue(c.env, {
-    userId: u.id, deviceId,
-    command: { command_type: 'sync_automation', payload: { valve_key: valveKey, rule } },
-    source: 'automation',
-  }).catch(() => {}); // non-fatal if device offline
+  // Push updated rule to device directly (bypasses enqueue validation — sync_automation is internal)
+  await c.env.DB.prepare(
+    `INSERT INTO commands (id, device_id, user_id, command_type, payload, source)
+     VALUES (?1,?2,?3,'sync_automation',?4,'automation')`
+  ).bind(
+    newId(), deviceId, u.id,
+    JSON.stringify({ valve_key: valveKey, rule }),
+  ).run().catch(() => {}); // non-fatal
 
   const saved = await c.env.DB.prepare(
     `SELECT * FROM automation_rules WHERE device_id=?1 AND valve_key=?2`

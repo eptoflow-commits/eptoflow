@@ -6,7 +6,8 @@ import { tokens } from '@/lib/api';
 
 const NAV = [
   { href: '/admin',                      label: 'Dashboard' },
-  { href: '/admin/contact-requests',     label: '📬 Requests' },
+  { href: '/admin/addon-requests',       label: '⚡ Addon Requests' },
+  { href: '/admin/contact-requests',     label: '📬 Contacts' },
   { href: '/admin/users',                label: 'Users' },
   { href: '/admin/devices',              label: 'Devices' },
   { href: '/admin/subscriptions',        label: 'Subscriptions' },
