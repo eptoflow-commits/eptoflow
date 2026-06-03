@@ -4,7 +4,6 @@ import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import VoiceButton from '@/components/VoiceButton';
-import RelayCard from '@/components/RelayCard';
 import SensorGraph from '@/components/SensorGraph';
 import AutomationRuleBuilder from '@/components/AutomationRuleBuilder';
 import { api } from '@/lib/api';
@@ -444,8 +443,8 @@ function DeviceContent({ id }: { id: string }) {
   const [sub, setSub]               = useState<Subscription | null>(null);
   const [zoneNames, setZoneNames]   = useState<Record<string, string>>({});
   const [availableValves, setAvailableValves] = useState<string[]>(['valve1','valve2','valve3','relay1']);
-  const [activeTab, setActiveTab]   = useState<'classic' | 'relays' | 'sensors' | 'automation'>('relays');
-  const [cmdTick, setCmdTick]       = useState(0);
+  const [activeTab, setActiveTab]   = useState<'manual' | 'schedule' | 'auto'>('manual');
+  const [cmdTick, setCmdTick]       = useState(0); // kept for license refresh
   const timerRef = useRef<any>(null);
 
   const isPremium = sub?.plan_name === 'premium';
@@ -580,106 +579,159 @@ function DeviceContent({ id }: { id: string }) {
       {/* ── Live Sensor Panel ── */}
       <LiveSensorPanel deviceId={id} isPremium={isPremium} />
 
-      {/* ── Output controls ── */}
-      <div style={{ fontSize:13, fontWeight:700, color:'#374151', marginBottom:10, letterSpacing:'-0.01em' }}>
-        Controls & Schedules
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:16 }}>
-        {valves.map(v => (
-          <OutputCard key={v} outputKey={v}
-            isOn={isOn(v)} loading={loadingKey===v}
-            isOnline={isOnline} deviceId={id}
-            onToggle={()=>toggle(v)}
-            onScheduleSaved={load}
-          />
-        ))}
-        {hasRelay && (
-          <OutputCard outputKey="relay1"
-            isOn={isOn('relay1')} loading={loadingKey==='relay1'}
-            isOnline={isOnline} deviceId={id}
-            onToggle={()=>toggle('relay1')}
-            onScheduleSaved={load}
-          />
-        )}
-        {addonValves.map(k => (
-          <OutputCard key={k} outputKey={k}
-            isOn={isOn(k)} loading={loadingKey===k}
-            isOnline={isOnline} deviceId={id}
-            onToggle={()=>toggle(k)}
-            onScheduleSaved={load}
-          />
-        ))}
-      </div>
-
-      {/* ── Stop all ── */}
-      <button onClick={()=>{ setOptimistic({}); send('stop_all'); }}
-        disabled={!isOnline} style={{
-          width:'100%', padding:'14px 0', borderRadius:14, border:'none',
-          background: isOnline ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : '#e5e7eb',
-          color: isOnline ? '#fff' : '#9ca3af', fontSize:14, fontWeight:800,
-          cursor: isOnline ? 'pointer' : 'not-allowed',
-          boxShadow: isOnline ? '0 4px 18px rgba(220,38,38,0.35)' : 'none',
-          transition:'all 0.2s', marginBottom:16,
-        }}>■ Stop Everything</button>
-
-      {/* ── Voice ── */}
-      {plan.hasVoice && (
-        <div style={{ marginBottom:16 }}>
-          <VoiceButton deviceId={device.id} disabled={!isOnline} onCommand={load}/>
-        </div>
-      )}
-
       {/* ══════════════════════════════════════════════════════════
-          ── Advanced tabs: Relays · Sensors · Automation ──
+          THREE TABS: Manual · Schedule · Sensor Auto
           ════════════════════════════════════════════════════════ */}
-      <div style={{ marginTop:8, marginBottom:12 }}>
+
+      {/* Tab bar */}
+      <div style={{ marginBottom:14 }}>
         <div style={{
           display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:5,
-          background:'#f1f5f9', borderRadius:14, padding:4,
+          background:'#f1f5f9', borderRadius:16, padding:4,
         }}>
           {([
-            { key:'relays',     label:'🎛️ Relays'    },
-            { key:'sensors',    label:'📊 Sensors'   },
-            { key:'automation', label:'🤖 Auto'      },
+            { key:'manual',   label:'🖐️ Manual',   desc:'On / Off' },
+            { key:'schedule', label:'⏰ Schedule',  desc:'Timer' },
+            { key:'auto',     label:'🤖 Sensor Auto', desc:'Threshold' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               style={{
-                padding:'8px 0', borderRadius:10, border:'none', cursor:'pointer',
+                padding:'10px 0', borderRadius:12, border:'none', cursor:'pointer',
                 background: activeTab === t.key ? '#fff' : 'transparent',
                 color: activeTab === t.key ? '#1f2937' : '#64748b',
                 fontWeight:700, fontSize:12,
-                boxShadow: activeTab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                boxShadow: activeTab === t.key ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                 transition:'all 0.15s',
               }}>
-              {t.label}
+              <div>{t.label}</div>
+              <div style={{ fontSize:9, fontWeight:500, opacity:0.6, marginTop:1 }}>{t.desc}</div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Relays tab ── */}
-      {activeTab === 'relays' && (
-        <div style={{ marginBottom:16 }}>
-          <RelayCard
-            deviceId={id}
-            isPremium={isPremium}
-            zoneNames={zoneNames}
-            onCommand={() => { load(); setCmdTick(t => t + 1); }}
-          />
+      {/* ── TAB 1: MANUAL ── */}
+      {activeTab === 'manual' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:16 }}>
+          {/* Zone output cards — toggle + quick presets only */}
+          {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map(key => {
+            const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
+            const on = isOn(key);
+            const busy = loadingKey === key;
+            return (
+              <div key={key} style={{
+                background: on ? meta.bg : '#fff',
+                borderRadius:18, padding:'14px 16px',
+                border:`1.5px solid ${on ? meta.color+'55' : '#e5e7eb'}`,
+                boxShadow: on ? `0 6px 24px ${meta.glow}` : '0 2px 8px rgba(0,0,0,0.05)',
+                transition:'all 0.3s', position:'relative', overflow:'hidden',
+              }}>
+                {on && !busy && (
+                  <span style={{ position:'absolute', top:12, right:12, width:9, height:9,
+                    borderRadius:'50%', background:meta.color,
+                    animation:'pulseRing 1.8s ease-out infinite' }}/>
+                )}
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                  <div style={{ width:44, height:44, borderRadius:14,
+                    background: on ? meta.color+'22' : '#f3f4f6',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:22, transition:'all 0.3s',
+                    filter: on ? 'none' : 'grayscale(0.5)', flexShrink:0 }}>
+                    {meta.icon}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:800, fontSize:14, color: on ? meta.color : '#1f2937' }}>
+                      {zoneNames[key] || meta.label}
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.06em',
+                      textTransform:'uppercase', color: busy ? '#9ca3af' : on ? meta.color : '#9ca3af', marginTop:2 }}>
+                      {busy ? 'Updating…' : on ? '● Running' : '○ Idle'}
+                    </div>
+                  </div>
+                  <Toggle on={on} loading={busy} disabled={!isOnline} color={meta.color}
+                    onToggle={()=>toggle(key)}/>
+                </div>
+                {/* Quick timer presets */}
+                <div style={{ display:'flex', gap:6 }}>
+                  {DURATION_PRESETS.map(p => (
+                    <button key={p.s} disabled={!isOnline || busy} onClick={() => {
+                      setOptimistic(s => ({...s,[key]:true}));
+                      send('water_for', {target: key, duration: p.s});
+                    }} style={{
+                      flex:1, padding:'8px 0', borderRadius:10, border:'none',
+                      background: meta.color+'18', color: meta.color,
+                      fontSize:11, fontWeight:700, cursor: isOnline ? 'pointer':'not-allowed',
+                      opacity: isOnline ? 1 : 0.4, transition:'background 0.15s',
+                    }}>{p.l}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Stop All */}
+          <button onClick={()=>{ setOptimistic({}); send('stop_all'); }}
+            disabled={!isOnline} style={{
+              width:'100%', padding:'14px 0', borderRadius:14, border:'none',
+              background: isOnline ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : '#e5e7eb',
+              color: isOnline ? '#fff' : '#9ca3af', fontSize:14, fontWeight:800,
+              cursor: isOnline ? 'pointer' : 'not-allowed',
+              boxShadow: isOnline ? '0 4px 18px rgba(220,38,38,0.35)' : 'none',
+              transition:'all 0.2s',
+            }}>■ Stop Everything</button>
+
+          {/* Voice */}
+          {plan.hasVoice && (
+            <VoiceButton deviceId={device.id} disabled={!isOnline} onCommand={load}/>
+          )}
         </div>
       )}
 
-      {/* ── Sensors tab ── */}
-      {activeTab === 'sensors' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:16 }}>
+      {/* ── TAB 2: SCHEDULE ── */}
+      {activeTab === 'schedule' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:16, marginBottom:16 }}>
+          <div style={{ fontSize:12, color:'#64748b', textAlign:'center', marginBottom:4 }}>
+            Set recurring schedules — device runs them automatically even when offline.
+          </div>
+          {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map(key => {
+            const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
+            return (
+              <div key={key} style={{
+                borderRadius:18, overflow:'hidden',
+                border:`1.5px solid ${meta.color}30`,
+                boxShadow:`0 2px 12px ${meta.glow}`,
+                background:'#fff',
+              }}>
+                {/* Zone header */}
+                <div style={{
+                  background:`linear-gradient(135deg,${meta.color},${meta.color}cc)`,
+                  padding:'12px 16px', display:'flex', alignItems:'center', gap:10,
+                }}>
+                  <span style={{ fontSize:22 }}>{meta.icon}</span>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:15, color:'#fff' }}>
+                      {zoneNames[key] || meta.label}
+                    </div>
+                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>Set watering schedule</div>
+                  </div>
+                </div>
+                {/* Schedule form */}
+                <div style={{ padding:'14px 16px' }}>
+                  <QuickSchedule outputKey={key} deviceId={id} onSaved={load}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── TAB 3: SENSOR AUTO ── */}
+      {activeTab === 'auto' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:16 }}>
+          {/* Sensor graph for context */}
           <SensorGraph deviceId={id} />
           <SensorAlerts deviceId={id} />
-        </div>
-      )}
 
-      {/* ── Automation tab ── */}
-      {activeTab === 'automation' && (
-        <div style={{ marginBottom:16 }}>
           {isPremium ? (
             <AutomationRuleBuilder
               deviceId={id}
@@ -691,33 +743,22 @@ function DeviceContent({ id }: { id: string }) {
               background:'linear-gradient(135deg,#fdf4ff,#fae8ff)',
               borderRadius:18, padding:'28px 20px', textAlign:'center',
               border:'1.5px solid #e9d5ff',
-              boxShadow:'0 4px 20px rgba(168,85,247,0.1)',
             }}>
               <div style={{ fontSize:36, marginBottom:10 }}>🤖</div>
               <div style={{ fontWeight:800, fontSize:16, color:'#581c87', marginBottom:6 }}>
-                Smart Automation
+                Sensor-Based Automation
               </div>
               <div style={{ fontSize:13, color:'#7c3aed', marginBottom:18, lineHeight:1.5 }}>
-                Auto-water your plants based on real-time<br/>soil moisture and temperature readings.
+                Auto-water based on live soil moisture &amp; temperature.
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20, textAlign:'left' }}>
-                {[
-                  '💧 Turn valve ON when moisture drops below 30%',
-                  '🌡️ Turn valve OFF when temperature drops below 28°C',
-                  '⏰ Set time windows + max run duration',
-                  '🔄 Works offline — rules run on device',
-                ].map(f => (
-                  <div key={f} style={{ fontSize:12, color:'#6d28d9' }}>{f}</div>
-                ))}
-              </div>
+              {['💧 Turn ON when moisture &lt; 30%','🌡️ Turn OFF when temp cools','⏰ Time windows + safety cap','🔄 Runs offline on device'].map(f => (
+                <div key={f} style={{ fontSize:12, color:'#6d28d9', marginBottom:6, textAlign:'left' }}>{f}</div>
+              ))}
               <a href="/subscription" style={{
-                display:'inline-block', padding:'12px 28px', borderRadius:12,
+                display:'inline-block', marginTop:12, padding:'12px 28px', borderRadius:12,
                 background:'linear-gradient(135deg,#7c3aed,#6d28d9)',
                 color:'#fff', fontWeight:800, fontSize:14, textDecoration:'none',
-                boxShadow:'0 4px 18px rgba(124,58,237,0.4)',
-              }}>
-                ⚡ Upgrade to Premium
-              </a>
+              }}>⚡ Upgrade to Premium</a>
             </div>
           )}
         </div>
