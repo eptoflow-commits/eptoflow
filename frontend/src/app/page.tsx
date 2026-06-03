@@ -137,7 +137,7 @@ export default function LandingPage() {
             color: '#fff', fontSize: 15, fontWeight: 800, textDecoration: 'none',
             boxShadow: '0 6px 24px rgba(52,211,153,0.4)',
             transition: 'all 0.2s',
-          }}>Start Free →</Link>
+          }}>Get Started →</Link>
           <Link href="/login" style={{
             padding: '14px 28px', borderRadius: 14,
             border: '1px solid rgba(255,255,255,0.15)',
@@ -270,7 +270,7 @@ export default function LandingPage() {
             color: '#fff', fontSize: 15, fontWeight: 800, textDecoration: 'none',
             boxShadow: '0 6px 24px rgba(52,211,153,0.4)',
             transition: 'all 0.2s',
-          }}>Get Started Free →</Link>
+          }}>Get Started →</Link>
         </div>
         <p style={{ marginTop: 32, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
           © {new Date().getFullYear()} Eptoflow. All rights reserved.
