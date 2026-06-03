@@ -120,39 +120,42 @@ router.get('/:deviceId/automation', authUser, loadSubscription(), asyncH(async (
 
 // ─── PUT /:deviceId/automation/:valveKey ──────────────────────────────────────
 
-const ruleSchema = z.object({
-  enabled:         z.boolean().default(true),
-  mode:            z.enum(['manual', 'auto']).default('auto'),
-  on_moisture_lt:  z.number().min(0).max(100).nullable().default(null),
-  on_temp_gt:      z.number().min(-40).max(80).nullable().default(null),
-  on_logic:        z.enum(['AND', 'OR']).default('AND'),
-  off_moisture_gt: z.number().min(0).max(100).nullable().default(null),
-  off_temp_lt:     z.number().min(-40).max(80).nullable().default(null),
-  off_logic:       z.enum(['AND', 'OR']).default('AND'),
-  schedule_start:  z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
-  schedule_end:    z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
-  max_duration_s:  z.number().min(0).max(7200).default(1800),
-});
+function parseRule(body = {}) {
+  const toHHMM = v => {
+    if (!v || typeof v !== 'string') return null;
+    const m = v.match(/^(\d{2}:\d{2})/);
+    return m ? m[1] : null;
+  };
+  return {
+    enabled:        body.enabled == null ? true : !!body.enabled,
+    mode:           body.mode === 'manual' ? 'manual' : 'auto',
+    on_moisture_lt: (typeof body.on_moisture_lt === 'number' && body.on_moisture_lt >= 0)   ? body.on_moisture_lt  : null,
+    on_temp_gt:     (typeof body.on_temp_gt     === 'number' && body.on_temp_gt    >= -40)  ? body.on_temp_gt      : null,
+    on_logic:       body.on_logic  === 'OR' ? 'OR' : 'AND',
+    off_moisture_gt:(typeof body.off_moisture_gt === 'number' && body.off_moisture_gt >= 0) ? body.off_moisture_gt : null,
+    off_temp_lt:    (typeof body.off_temp_lt     === 'number' && body.off_temp_lt   >= -40) ? body.off_temp_lt     : null,
+    off_logic:      body.off_logic === 'OR' ? 'OR' : 'AND',
+    schedule_start: toHHMM(body.schedule_start),
+    schedule_end:   toHHMM(body.schedule_end),
+    max_duration_s: (typeof body.max_duration_s === 'number' && body.max_duration_s > 0)
+      ? Math.min(body.max_duration_s, 7200) : 1800,
+  };
+}
 
-router.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requireActive: true }), asyncH(async (req, res) => {
+router.put('/:deviceId/automation/:valveKey', authUser, loadSubscription(), asyncH(async (req, res) => {
   const { deviceId, valveKey } = req.params;
 
   if (!ALL_VALVES.includes(valveKey)) throw Errors.badRequest('Invalid valve key');
-
   await ownDevice(deviceId, req.user.id);
   await ensureTables();
 
-  // Premium relays must be activated first
-  if (PREMIUM_RELAYS.includes(valveKey)) {
-    const { rows: [lic] } = await query(
-      `SELECT activated FROM relay_licenses WHERE device_id=$1 AND relay_key=$2`,
-      [deviceId, valveKey]
-    );
-    if (!lic?.activated) throw Errors.forbidden(`${valveKey} is not activated on this device`);
-  }
+  const rule = parseRule(req.body);
 
-  const rule = ruleSchema.parse(req.body);
-
+  // DELETE + INSERT avoids ON CONFLICT constraint dependency on old tables
+  await query(
+    `DELETE FROM automation_rules WHERE device_id=$1 AND valve_key=$2`,
+    [deviceId, valveKey]
+  );
   await query(`
     INSERT INTO automation_rules
       (id, device_id, user_id, valve_key, enabled, mode,
@@ -160,15 +163,6 @@ router.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requi
        off_moisture_gt, off_temp_lt, off_logic,
        schedule_start, schedule_end, max_duration_s)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-    ON CONFLICT(device_id, valve_key) DO UPDATE SET
-      enabled=EXCLUDED.enabled, mode=EXCLUDED.mode,
-      on_moisture_lt=EXCLUDED.on_moisture_lt, on_temp_gt=EXCLUDED.on_temp_gt,
-      on_logic=EXCLUDED.on_logic,
-      off_moisture_gt=EXCLUDED.off_moisture_gt, off_temp_lt=EXCLUDED.off_temp_lt,
-      off_logic=EXCLUDED.off_logic,
-      schedule_start=EXCLUDED.schedule_start, schedule_end=EXCLUDED.schedule_end,
-      max_duration_s=EXCLUDED.max_duration_s,
-      updated_at=NOW()
   `, [
     randomUUID(), deviceId, req.user.id, valveKey,
     rule.enabled, rule.mode,
@@ -177,7 +171,7 @@ router.put('/:deviceId/automation/:valveKey', authUser, loadSubscription({ requi
     rule.schedule_start, rule.schedule_end, rule.max_duration_s,
   ]);
 
-  // Enqueue sync_automation command (non-fatal if device offline)
+  // Sync rule to device (non-fatal)
   await query(`
     INSERT INTO commands (device_id, user_id, command_type, payload, source)
     VALUES ($1,$2,'sync_automation',$3,'automation')

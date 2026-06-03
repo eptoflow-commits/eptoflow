@@ -28,7 +28,8 @@ export const PLAN_FEATURES = {
     hasVoice: true,
     hasScheduling: true,
     moistureAutomation: true,
-    allowedOutputs: new Set(['valve1', 'valve2', 'valve3', 'relay1']),
+    // relay6/7/8 are premium add-ons activated per-device by admin
+    allowedOutputs: new Set(['valve1', 'valve2', 'valve3', 'relay1', 'relay6', 'relay7', 'relay8']),
   },
 };
 

@@ -12,5 +12,5 @@ export function errorHandler(err, _req, res, _next) {
     });
   }
   console.error('[unhandled]', err);
-  res.status(500).json({ error: { code: 'SERVER_ERROR', message: 'Internal error' } });
+  res.status(500).json({ error: { code: 'SERVER_ERROR', message: err?.message || 'Internal error' } });
 }
