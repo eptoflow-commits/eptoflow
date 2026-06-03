@@ -35,7 +35,7 @@ services:
       - key: DEFAULT_ADMIN_PASSWORD
         generateValue: true
       - key: HEARTBEAT_OFFLINE_SECONDS
-        value: 120
+        value: 300
       - key: SUBSCRIPTION_DAYS
         value: 30
 

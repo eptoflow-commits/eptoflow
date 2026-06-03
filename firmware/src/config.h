@@ -40,8 +40,8 @@
 #define SENSOR_PUSH_INTERVAL_MS  30000   // push to cloud every 30 s
 
 // ── Cloud polling ───────────────────────────────────────────────────────────
-#define CMD_POLL_INTERVAL_MS     5000    // check for new commands every 5 s
-#define HEARTBEAT_INTERVAL_MS    60000   // POST heartbeat every 60 s
+#define CMD_POLL_INTERVAL_MS     2000    // check for new commands every 2 s (faster relay response)
+#define HEARTBEAT_INTERVAL_MS    30000   // POST heartbeat every 30 s
 #define CONFIG_FETCH_INTERVAL_MS 300000  // re-fetch config every 5 min
 
 // ── Automation safety ───────────────────────────────────────────────────────
@@ -59,7 +59,7 @@
 #define NVS_NS_AUTO     "auto"      // stores automation rules JSON blob
 
 // ── Watchdog ────────────────────────────────────────────────────────────────
-#define WDT_TIMEOUT_S   30
+#define WDT_TIMEOUT_S   60
 
 // ── MQTT (optional — define MQTT_ENABLED to use) ────────────────────────────
 // #define MQTT_ENABLED

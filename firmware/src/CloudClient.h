@@ -137,20 +137,25 @@ public:
     return code == 200;
   }
 
-  // ── Heartbeat ─────────────────────────────────────────────────────────────
+  // ── Heartbeat (retry x3 — handles Render cold-start wake-up) ────────────
   bool heartbeat(const String& stateJson) {
     if (_token.isEmpty()) return false;
-    MAKE_SECURE_CLIENT()
-    HTTPClient http;
-    http.setTimeout(8000);
-    http.begin(_sc, _baseUrl + "/api/device/heartbeat");
-    http.addHeader("Authorization", "Bearer " + _token);
-    http.addHeader("Content-Type", "application/json");
     String body = "{\"relay_state\":" + stateJson + ",\"firmware\":\"" FIRMWARE_VERSION "\"}";
-    int code = http.POST(body);
-    http.end();
-    if (code == 401) { _token = ""; }
-    return code == 200;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      MAKE_SECURE_CLIENT()
+      HTTPClient http;
+      http.setTimeout(15000); // 15 s to allow Render to wake from sleep
+      http.begin(_sc, _baseUrl + "/api/device/heartbeat");
+      http.addHeader("Authorization", "Bearer " + _token);
+      http.addHeader("Content-Type", "application/json");
+      int code = http.POST(body);
+      http.end();
+      if (code == 200) return true;
+      if (code == 401) { _token = ""; return false; }
+      Serial.printf("[cloud] heartbeat attempt %d failed (HTTP %d)\n", attempt, code);
+      if (attempt < 3) { esp_task_wdt_reset(); delay(5000); }
+    }
+    return false;
   }
 
   // ── Fetch config (automation rules, relay licenses) ───────────────────────

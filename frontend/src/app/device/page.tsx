@@ -486,6 +486,14 @@ function DeviceContent({ id }: { id: string }) {
     return () => clearInterval(timerRef.current);
   }, [load]);
 
+  // Keep Render backend awake while device page is open (free tier sleeps after 15 min)
+  useEffect(() => {
+    const ping = () => fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/health`).catch(() => {});
+    ping();
+    const iv = setInterval(ping, 30000); // every 30 s
+    return () => clearInterval(iv);
+  }, []);
+
   if (err) return <AppShell><div className="card text-red-600 text-sm">⚠️ {err}</div></AppShell>;
   if (!data) return (
     <AppShell>
