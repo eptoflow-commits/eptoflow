@@ -53,7 +53,10 @@ export default function AutomationRuleBuilder({ deviceId, availableValves, zoneN
     api<{ rules: Rule[] }>(`/api/relays/${deviceId}/automation`)
       .then((r) => {
         const map: Record<string, Rule> = {};
-        for (const rule of r.rules) map[rule.valve_key] = rule;
+        for (const rule of (r?.rules ?? [])) {
+          // SQLite returns enabled as 0/1 integer — coerce to boolean
+          map[rule.valve_key] = { ...rule, enabled: !!rule.enabled };
+        }
         setRules(map);
       })
       .catch(() => {});
@@ -62,7 +65,10 @@ export default function AutomationRuleBuilder({ deviceId, availableValves, zoneN
   const getRule = (key: string): Rule => rules[key] ?? DEFAULT_RULE(key);
 
   const updateField = (key: string, field: keyof Rule, value: any) => {
-    setRules((prev) => ({ ...prev, [key]: { ...getRule(key), [field]: value } }));
+    setRules((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? DEFAULT_RULE(key)), [field]: value },
+    }));
   };
 
   const save = async (key: string) => {

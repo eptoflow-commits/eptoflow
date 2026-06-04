@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, Component, type ReactNode } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import VoiceButton from '@/components/VoiceButton';
@@ -10,6 +10,52 @@ import { api } from '@/lib/api';
 import type { Command, Device, Plan, Subscription } from '@/lib/types';
 
 type Detail = { device: Device; last_status: any; recent_commands: Command[]; plan: Plan };
+
+// ── Error boundary for Sensor Auto tab ───────────────────────────────────────
+class SensorAutoErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: string | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err: any) {
+    return { error: err?.message ?? 'Unknown error' };
+  }
+  componentDidCatch(err: any, info: any) {
+    console.error('[SensorAuto] render error:', err, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 16,
+          padding: '20px 18px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+          <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
+            Sensor Auto failed to load
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 14 }}>
+            {this.state.error}
+          </div>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              padding: '8px 20px', borderRadius: 10, border: 'none',
+              background: '#dc2626', color: '#fff', fontWeight: 700,
+              fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Sensor alert sub-component ────────────────────────────────────────────────
 type SensorAlert = {
@@ -727,6 +773,7 @@ function DeviceContent({ id }: { id: string }) {
 
       {/* ── TAB 3: SENSOR AUTO ── */}
       {activeTab === 'auto' && (
+        <SensorAutoErrorBoundary>
         <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:16 }}>
           {/* Sensor graph for context */}
           <SensorGraph deviceId={id} />
@@ -762,6 +809,7 @@ function DeviceContent({ id }: { id: string }) {
             </div>
           )}
         </div>
+        </SensorAutoErrorBoundary>
       )}
     </AppShell>
   );
