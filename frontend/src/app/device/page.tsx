@@ -388,8 +388,8 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
           `/api/sensors/${deviceId}`
         );
         if (r.latest) {
-          setMoisture(r.latest.moisture_pct);
-          setTemp(r.latest.temp_c);
+          setMoisture(r.latest.moisture_pct != null ? Number(r.latest.moisture_pct) : null);
+          setTemp(r.latest.temp_c != null ? Number(r.latest.temp_c) : null);
           const secs = Math.floor((Date.now() - new Date(r.latest.recorded_at).getTime()) / 1000);
           setAge(secs < 60 ? 'just now' : `${Math.floor(secs/60)}m ago`);
         }

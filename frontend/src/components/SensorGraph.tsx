@@ -104,9 +104,9 @@ export default function SensorGraph({ deviceId }: Props) {
     }
   }, [readings, view]);
 
-  const moisture = latest?.moisture_pct;
-  const temp     = latest?.temp_c;
-  const online   = latest?.read_ok !== false && latest !== null;
+  const moisture = latest?.moisture_pct != null ? Number(latest.moisture_pct) : null;
+  const temp     = latest?.temp_c      != null ? Number(latest.temp_c)       : null;
+  const online   = !!latest?.read_ok && latest !== null;
 
   const moistureColor = (v: number) =>
     v < 20 ? '#dc2626' : v < 35 ? '#d97706' : v > 70 ? '#0284c7' : '#059669';
