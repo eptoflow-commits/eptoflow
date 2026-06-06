@@ -605,89 +605,137 @@ function DeviceContent({ id }: { id: string }) {
   return (
     <AppShell>
       <style>{`
-        @keyframes pulseRing  { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.6)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+        /* Keyframes */
+        @keyframes pulseRing  { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.65)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
         @keyframes spin       { to { transform:rotate(360deg); } }
         @keyframes fadeUp     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideDown  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes waterFlow  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes waterDripIcon { 0%{transform:translateX(-50%) translateY(-4px);opacity:0} 30%{opacity:1} 100%{transform:translateX(-50%) translateY(14px);opacity:0} }
         @keyframes pulseDot   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
-        .zone-card:active { transform: scale(0.985) !important; }
+        @keyframes heroGlow   { 0%,100%{opacity:0.6} 50%{opacity:1} }
+        @keyframes gradientShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        .zone-card-press:active { transform:scale(0.983) !important; }
+
+        /* ── Responsive device layout ── */
+        .device-hero { margin:0 -16px; }
+        .device-layout { display:flex; flex-direction:column; gap:16px; }
+        .device-col-left { width:100%; }
+        .device-col-right { width:100%; }
+        .zone-grid { display:flex; flex-direction:column; gap:10px; }
+
+        @media(min-width:640px) {
+          .device-hero { margin:0 -28px; }
+        }
+        @media(min-width:768px) {
+          .device-hero { margin:0 -28px; }
+          .zone-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+          .zone-stop-btn { grid-column:1/-1; }
+        }
+        @media(min-width:1024px) {
+          .device-hero { margin:0 -40px; }
+          .device-layout { flex-direction:row; align-items:flex-start; gap:22px; }
+          .device-col-left { width:340px; flex-shrink:0; position:sticky; top:78px; }
+          .device-col-right { flex:1; min-width:0; }
+        }
       `}</style>
 
-      {/* ── Device Header — dark Tesla-style ── */}
-      <div style={{
-        margin:'0 -16px', marginBottom:0,
-        background:'linear-gradient(160deg,#060F0A 0%,#0F1F17 60%,#0D5C3D 100%)',
-        padding:'20px 24px 22px', color:'#fff', position:'relative', overflow:'hidden',
+      {/* ══════════════════════════════════════════
+          HERO — full bleed, animated dark gradient
+      ══════════════════════════════════════════ */}
+      <div className="device-hero" style={{
+        background:'linear-gradient(160deg,#060F0A 0%,#0F2118 55%,#0D5C3D 100%)',
+        backgroundSize:'200% 200%',
+        padding:'24px 28px 0', color:'#fff', position:'relative', overflow:'hidden',
+        marginBottom:20,
       }}>
-        {/* Ambient glow */}
-        <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,197,94,0.12) 0%,transparent 70%)', pointerEvents:'none' }}/>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'relative' }}>
+        {/* Animated ambient blobs */}
+        <div style={{ position:'absolute', top:-50, right:-30, width:200, height:200, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,197,94,0.16) 0%,transparent 70%)', animation:'heroGlow 4s ease-in-out infinite', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', bottom:0, left:-30, width:150, height:150, borderRadius:'50%', background:'radial-gradient(circle,rgba(14,165,233,0.10) 0%,transparent 70%)', pointerEvents:'none' }}/>
+
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'relative', marginBottom:20 }}>
           <div>
-            <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.10em', marginBottom:6 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.38)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:8 }}>
               Irrigation Controller
             </div>
-            <div style={{ fontSize:22, fontWeight:900, letterSpacing:'-0.03em', lineHeight:1 }}>{device.device_name}</div>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)', marginTop:4, fontFamily:'monospace' }}>{device.device_uid}</div>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:5, marginTop:10, padding:'4px 12px', borderRadius:20, background:'rgba(255,255,255,0.10)', border:'1px solid rgba(255,255,255,0.15)', fontSize:10, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
-              {plan.plan} plan
+            <div style={{ fontSize:26, fontWeight:900, letterSpacing:'-0.04em', lineHeight:1, marginBottom:6 }}>
+              {device.device_name}
+            </div>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,0.38)', fontFamily:'monospace', marginBottom:12 }}>
+              {device.device_uid}
+            </div>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 14px', borderRadius:20, background:'rgba(255,255,255,0.09)', border:'1px solid rgba(255,255,255,0.14)', fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+              ✨ {plan.plan} plan
             </div>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+
+          {/* Status badge — large, noticeable */}
+          <div style={{
+            display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6,
+          }}>
             <div style={{
-              display:'flex', alignItems:'center', gap:6, padding:'6px 13px', borderRadius:20,
-              background: isOnline ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.08)',
-              border:`1px solid ${isOnline ? 'rgba(34,197,94,0.35)' : 'rgba(255,255,255,0.12)'}`,
+              display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius:22,
+              background: isOnline ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.14)',
+              border:`1px solid ${isOnline ? 'rgba(34,197,94,0.40)' : 'rgba(239,68,68,0.30)'}`,
+              boxShadow: isOnline ? '0 0 20px rgba(34,197,94,0.15)' : 'none',
             }}>
-              <span style={{ width:8, height:8, borderRadius:'50%', display:'inline-block',
-                background: isOnline ? '#22C55E' : '#6b7280',
-                boxShadow: isOnline ? '0 0 8px #22C55E' : 'none',
+              <span style={{ width:10, height:10, borderRadius:'50%', display:'inline-block',
+                background: isOnline ? '#22C55E' : '#ef4444',
+                boxShadow: isOnline ? '0 0 10px #22C55E, 0 0 20px rgba(34,197,94,0.5)' : '0 0 8px #ef4444',
                 animation: isOnline ? 'pulseRing 2s infinite' : 'none' }}/>
-              <span style={{ fontSize:12, fontWeight:700, color: isOnline ? '#22C55E' : 'rgba(255,255,255,0.5)' }}>
+              <span style={{ fontSize:13, fontWeight:800, color: isOnline ? '#22C55E' : '#f87171', letterSpacing:'-0.01em' }}>
                 {isOnline ? 'Online' : 'Offline'}
               </span>
             </div>
           </div>
         </div>
-        {/* Wave bottom */}
-        <svg viewBox="0 0 400 20" style={{ display:'block', width:'100%', height:20, marginTop:16, marginLeft:-24, marginRight:-24, width:'calc(100% + 48px)' }} preserveAspectRatio="none">
-          <path d="M0 20 L0 10 Q100 0 200 10 Q300 20 400 10 L400 20 Z" fill="var(--fog)"/>
+
+        {/* Wave bottom edge */}
+        <svg viewBox="0 0 1200 32" style={{ display:'block', width:'100%', height:32, marginBottom:-1 }} preserveAspectRatio="none">
+          <path d="M0 32 L0 18 Q150 0 300 16 Q450 32 600 18 Q750 4 900 18 Q1050 32 1200 16 L1200 32 Z" fill="var(--fog)"/>
         </svg>
       </div>
 
-      {/* ── Live Sensor Panel ── */}
-      <LiveSensorPanel deviceId={id} isPremium={isPremium} />
+      {/* ══════════════════════════════════════════
+          RESPONSIVE TWO-COLUMN LAYOUT
+      ══════════════════════════════════════════ */}
+      <div className="device-layout">
 
-      {/* ══════════════════════════════════════════════════════════
-          THREE TABS: Manual · Schedule · Sensor Auto
-          ════════════════════════════════════════════════════════ */}
+        {/* LEFT COL — Sensor panel (sticky on desktop) */}
+        <div className="device-col-left">
+          <LiveSensorPanel deviceId={id} isPremium={isPremium} />
+        </div>
 
-      {/* Tab bar */}
+        {/* RIGHT COL — Tabs + Controls */}
+        <div className="device-col-right">
+
+      {/* ══ Premium segmented tab bar ══ */}
       <div style={{ marginBottom:16 }}>
         <div style={{
-          display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4,
-          background:'#f1f5f9', borderRadius:18, padding:4,
-          boxShadow:'inset 0 1px 3px rgba(0,0,0,0.07)',
+          display:'grid', gridTemplateColumns:'repeat(3,1fr)',
+          background:'#0F1F17', borderRadius:20, padding:5,
+          boxShadow:'0 4px 20px rgba(0,0,0,0.18)',
         }}>
           {([
-            { key:'manual',   label:'🖐️ Manual',      desc:'On / Off',   activeColor:'#059669' },
-            { key:'schedule', label:'⏰ Schedule',     desc:'Timer',      activeColor:'#0284c7' },
-            { key:'auto',     label:'🤖 Sensor Auto',  desc:'Threshold',  activeColor:'#7c3aed' },
+            { key:'manual',   icon:'🖐️', label:'Manual',      desc:'On / Off',  activeColor:'#22C55E', activeBg:'rgba(34,197,94,0.18)' },
+            { key:'schedule', icon:'⏰', label:'Schedule',     desc:'Timer',     activeColor:'#0EA5E9', activeBg:'rgba(14,165,233,0.18)' },
+            { key:'auto',     icon:'🤖', label:'Sensor Auto',  desc:'Threshold', activeColor:'#a78bfa', activeBg:'rgba(167,139,250,0.18)' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               style={{
-                padding:'10px 4px', borderRadius:14, border:'none', cursor:'pointer',
-                background: activeTab === t.key ? '#fff' : 'transparent',
-                color: activeTab === t.key ? t.activeColor : '#94a3b8',
+                padding:'11px 6px', borderRadius:16, border:'none', cursor:'pointer',
+                background: activeTab === t.key ? t.activeBg : 'transparent',
+                color: activeTab === t.key ? t.activeColor : 'rgba(255,255,255,0.35)',
                 fontWeight:800, fontSize:11,
-                boxShadow: activeTab === t.key ? '0 2px 10px rgba(0,0,0,0.10)' : 'none',
-                transition:'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
-                transform: activeTab === t.key ? 'scale(1.02)' : 'scale(1)',
+                boxShadow: activeTab === t.key ? `0 0 16px ${t.activeColor}30, inset 0 1px 0 ${t.activeColor}30` : 'none',
+                border: activeTab === t.key ? `1px solid ${t.activeColor}40` : '1px solid transparent',
+                transition:'all 0.22s cubic-bezier(0.34,1.2,0.64,1)',
+                transform: activeTab === t.key ? 'scale(1.03)' : 'scale(1)',
+                fontFamily:'inherit',
               }}>
-              <div style={{ fontSize:14, marginBottom:2 }}>{t.label.split(' ')[0]}</div>
-              <div style={{ fontSize:10, fontWeight:700 }}>{t.label.split(' ').slice(1).join(' ')}</div>
-              <div style={{ fontSize:9, fontWeight:500, opacity:0.55, marginTop:1 }}>{t.desc}</div>
+              <div style={{ fontSize:18, marginBottom:3 }}>{t.icon}</div>
+              <div style={{ fontSize:11, fontWeight:800, letterSpacing:'-0.01em' }}>{t.label}</div>
+              <div style={{ fontSize:9, fontWeight:500, opacity:0.6, marginTop:1 }}>{t.desc}</div>
             </button>
           ))}
         </div>
@@ -695,7 +743,8 @@ function DeviceContent({ id }: { id: string }) {
 
       {/* ── TAB 1: MANUAL ── */}
       {activeTab === 'manual' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+        <div style={{ marginBottom:16 }}>
+          <div className="zone-grid">
 
           {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map((key, idx) => {
             const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
@@ -818,21 +867,24 @@ function DeviceContent({ id }: { id: string }) {
             );
           })}
 
+          </div>{/* end zone-grid */}
+
           {/* ── Stop Everything ── */}
           <button
             onClick={() => { setOptimistic({}); send('stop_all'); }}
             disabled={!isOnline}
             style={{
-              width: '100%', padding: '17px 0', borderRadius: 18, border: 'none',
+              width: '100%', marginTop:12, padding: '17px 0', borderRadius: 18, border: 'none',
               background: isOnline
                 ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'
                 : 'var(--haze)',
               color: isOnline ? '#fff' : 'var(--dust)',
               fontSize: 16, fontWeight: 900,
               cursor: isOnline ? 'pointer' : 'not-allowed',
-              boxShadow: isOnline ? '0 4px 0 #7f1d1d, 0 8px 28px rgba(220,38,38,0.40)' : 'none',
+              boxShadow: isOnline ? '0 4px 0 #7f1d1d, 0 10px 32px rgba(220,38,38,0.45)' : 'none',
               transition: 'all 0.15s',
               letterSpacing: '-0.02em',
+              fontFamily:'inherit',
             }}
           >
             ■ Stop Everything
@@ -923,6 +975,10 @@ function DeviceContent({ id }: { id: string }) {
         </div>
         </SensorAutoErrorBoundary>
       )}
+
+        </div>{/* end device-col-right */}
+      </div>{/* end device-layout */}
+
     </AppShell>
   );
 }
