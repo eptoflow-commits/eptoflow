@@ -34,6 +34,10 @@ struct AutoRule {
   uint32_t max_duration_s   = MAX_VALVE_DURATION_S;
   uint32_t run_start_ms     = 0;   // when this valve last turned ON (runtime state)
   bool     running          = false;
+  // Cooldown after max duration — prevents valve re-triggering immediately
+  bool     in_cooldown      = false;
+  uint32_t cooldown_start_ms= 0;
+  uint32_t cooldown_s       = MAX_VALVE_DURATION_S; // default: wait same as run time
 };
 
 class AutomationEngine {
@@ -68,6 +72,7 @@ public:
       strlcpy(r.schedule_start, obj["schedule_start"] | "", sizeof(r.schedule_start));
       strlcpy(r.schedule_end,   obj["schedule_end"]   | "", sizeof(r.schedule_end));
       r.max_duration_s = obj["max_duration_s"]  | (uint32_t)MAX_VALVE_DURATION_S;
+      r.cooldown_s     = obj["cooldown_s"]      | r.max_duration_s; // default = same as run time
     }
     saveToNvs();
     Serial.printf("[auto] loaded %d rules from JSON\n", _ruleCount);
@@ -122,13 +127,29 @@ public:
 
       bool valveOn = Relays.isOn(r.valve_key);
 
+      // ── Cooldown check — block re-trigger after max duration ──────────
+      if (r.in_cooldown) {
+        uint32_t cooled = (millis() - r.cooldown_start_ms) / 1000;
+        if (cooled < r.cooldown_s) {
+          Serial.printf("[auto] %s cooldown %lu/%lus\n",
+            r.valve_key, cooled, r.cooldown_s);
+          continue; // still cooling down — skip ON evaluation
+        }
+        r.in_cooldown = false;
+        Serial.printf("[auto] %s cooldown done — re-enabling\n", r.valve_key);
+      }
+
       // ── Max duration safety ───────────────────────────────────────────
       if (valveOn && r.running) {
         uint32_t elapsed = (millis() - r.run_start_ms) / 1000;
         if (elapsed >= r.max_duration_s) {
-          Serial.printf("[auto] %s max duration reached → OFF\n", r.valve_key);
+          Serial.printf("[auto] %s max duration reached → OFF, cooling down %lus\n",
+            r.valve_key, r.cooldown_s);
           Relays.turnOff(r.valve_key);
-          r.running = false;
+          Relays.printStatus("auto");
+          r.running          = false;
+          r.in_cooldown      = true;
+          r.cooldown_start_ms = millis();
           continue;
         }
       }
@@ -164,7 +185,7 @@ public:
           r.valve_key, m, t);
         Relays.turnOn(r.valve_key, r.max_duration_s * 1000UL);
         Relays.printStatus("auto");
-        r.running     = true;
+        r.running      = true;
         r.run_start_ms = millis();
       }
     }
@@ -232,6 +253,7 @@ private:
       o["schedule_start"]  = r.schedule_start;
       o["schedule_end"]    = r.schedule_end;
       o["max_duration_s"]  = r.max_duration_s;
+      o["cooldown_s"]      = r.cooldown_s;
     }
     String json; serializeJson(doc, json);
     Preferences p; p.begin(NVS_NS_AUTO, false);
@@ -258,6 +280,7 @@ private:
     strlcpy(r.schedule_start, obj["schedule_start"] | r.schedule_start, sizeof(r.schedule_start));
     strlcpy(r.schedule_end,   obj["schedule_end"]   | r.schedule_end,   sizeof(r.schedule_end));
     r.max_duration_s = obj["max_duration_s"] | r.max_duration_s;
+    r.cooldown_s     = obj["cooldown_s"]     | r.max_duration_s;
   }
 };
 

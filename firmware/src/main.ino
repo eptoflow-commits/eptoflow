@@ -78,6 +78,10 @@ void loadProvisioning() {
   g_password = p.getString("password", DEFAULT_WIFI_PASSWORD);
   p.end();
 
+  // If NVS has credentials, show source clearly for debugging
+  bool nvsSsid = (g_ssid != DEFAULT_WIFI_SSID || g_password != DEFAULT_WIFI_PASSWORD);
+  Serial.printf("[prov] WiFi source = %s\n", nvsSsid ? "NVS" : "hardcoded");
+
   // Clear cached JWT so device re-authenticates fresh
   p.begin(NVS_NS_DEVICE, false);
   p.remove("token");
@@ -89,25 +93,36 @@ void loadProvisioning() {
 // ─────────────────────────────────────────────────────────────────────────────
 void connectWifi() {
   if (g_ssid.isEmpty()) {
-    Serial.println("[wifi] no credentials stored in NVS");
+    Serial.println("[wifi] no credentials — set SSID/password");
     return;
   }
-  Serial.printf("[wifi] connecting to %s\n", g_ssid.c_str());
+
+  Serial.printf("[wifi] SSID     = \"%s\"\n", g_ssid.c_str());
+  Serial.printf("[wifi] PASSWORD = \"%s\"\n", g_password.c_str());
+
+  // Full reset before connecting — avoids stale state causing failures
+  WiFi.disconnect(true);
+  delay(200);
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(false); // we handle reconnect manually
   WiFi.begin(g_ssid.c_str(), g_password.c_str());
 
+  Serial.print("[wifi] connecting");
   uint32_t t = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t < 15000) {
-    delay(500); Serial.print(".");
+  while (WiFi.status() != WL_CONNECTED && millis() - t < 20000) {
+    delay(500);
+    Serial.print(".");
+    esp_task_wdt_reset();
   }
+  Serial.println();
 
   bool connected = (WiFi.status() == WL_CONNECTED);
-  Serial.println();
   if (connected) {
-    Serial.printf("[wifi] connected — IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("[wifi] connected ✓  IP: %s\n", WiFi.localIP().toString().c_str());
     configTime(0, 0, "pool.ntp.org");
   } else {
-    Serial.println("[wifi] failed — running offline");
+    Serial.printf("[wifi] FAILED (status=%d) — running offline\n", WiFi.status());
+    Serial.println("[wifi] check SSID/password and signal strength");
   }
   Relays.setWifiStatus(connected);
   g_wifiWasConnected = connected;
@@ -167,13 +182,24 @@ void loop() {
   if (now - t_wifiCheck >= 10000) {
     t_wifiCheck = now;
     bool connected = (WiFi.status() == WL_CONNECTED);
-    if (!connected && g_wifiWasConnected) {
-      Serial.println("[wifi] disconnected — reconnecting…");
-      Relays.setWifiStatus(false);
-      WiFi.reconnect();
-      g_wifiWasConnected = false;
-    } else if (connected && !g_wifiWasConnected) {
-      Serial.println("[wifi] reconnected ✓");
+    if (!connected) {
+      if (g_wifiWasConnected) {
+        Serial.println("[wifi] disconnected — will reconnect");
+        Relays.setWifiStatus(false);
+        g_wifiWasConnected = false;
+      }
+      // Full reconnect every 30 s when offline
+      static uint32_t t_reconnect = 0;
+      if (now - t_reconnect >= 30000) {
+        t_reconnect = now;
+        Serial.println("[wifi] attempting reconnect…");
+        connectWifi();
+        if (WiFi.status() == WL_CONNECTED && !Cloud.isAuthenticated()) {
+          Cloud.authenticate();
+        }
+      }
+    } else if (!g_wifiWasConnected) {
+      Serial.printf("[wifi] back online — IP: %s\n", WiFi.localIP().toString().c_str());
       Relays.setWifiStatus(true);
       g_wifiWasConnected = true;
       if (!Cloud.isAuthenticated()) Cloud.authenticate();
