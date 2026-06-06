@@ -481,22 +481,6 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
         </div>
       )}
 
-      {/* ── HIDDEN BELOW — kept for layout compat ── */}
-      <div style={{ display:'none' }}>
-        <div>{temp == null ? '—' : `${Math.round(temp * 10) / 10}°C`}</div>
-      </div>
-          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{
-              height: '100%', borderRadius: 99,
-              width: `${Math.min(((temp ?? 0) / 50) * 100, 100)}%`,
-              background: `linear-gradient(90deg,${tColor}bb,${tColor})`,
-              transition: 'width 1.2s ease, background 0.5s',
-            }}/>
-          </div>
-          <div style={{ fontSize: 11, color: tColor, fontWeight: 600, transition: 'color 0.5s' }}>{tLabel}</div>
-        </div>
-      </div>
-
     </div>
   );
 }
@@ -621,10 +605,14 @@ function DeviceContent({ id }: { id: string }) {
   return (
     <AppShell>
       <style>{`
-        @keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(16,185,129,0.6)} 70%{box-shadow:0 0 0 10px rgba(16,185,129,0)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)} }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseRing  { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.6)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+        @keyframes spin       { to { transform:rotate(360deg); } }
+        @keyframes fadeUp     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideDown  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes waterFlow  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        @keyframes waterDripIcon { 0%{transform:translateX(-50%) translateY(-4px);opacity:0} 30%{opacity:1} 100%{transform:translateX(-50%) translateY(14px);opacity:0} }
+        @keyframes pulseDot   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
+        .zone-card:active { transform: scale(0.985) !important; }
       `}</style>
 
       {/* ── Device Header — dark Tesla-style ── */}
@@ -707,73 +695,146 @@ function DeviceContent({ id }: { id: string }) {
 
       {/* ── TAB 1: MANUAL ── */}
       {activeTab === 'manual' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:16 }}>
-          {/* Zone output cards — toggle + quick presets only */}
-          {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map(key => {
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+
+          {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map((key, idx) => {
             const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
-            const on = isOn(key);
+            const on   = isOn(key);
             const busy = loadingKey === key;
+            const label = zoneNames[key] || meta.label;
+
             return (
               <div key={key} style={{
-                background: on ? meta.bg : '#fff',
-                borderRadius:18, padding:'14px 16px',
-                border:`1.5px solid ${on ? meta.color+'55' : '#e5e7eb'}`,
-                boxShadow: on ? `0 6px 24px ${meta.glow}` : '0 2px 8px rgba(0,0,0,0.05)',
-                transition:'all 0.3s', position:'relative', overflow:'hidden',
+                borderRadius: 22,
+                background: on
+                  ? `linear-gradient(135deg, ${meta.color}18 0%, ${meta.bg} 100%)`
+                  : '#fff',
+                border: `1.5px solid ${on ? meta.color + '60' : 'var(--haze)'}`,
+                boxShadow: on
+                  ? `0 8px 32px ${meta.glow}, inset 0 1px 0 rgba(255,255,255,0.8)`
+                  : '0 2px 8px rgba(0,0,0,0.05)',
+                overflow: 'hidden',
+                transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                animation: `fadeUp 0.4s ${idx * 0.06}s both`,
+                position: 'relative',
               }}>
+
+                {/* Running water animation strip */}
                 {on && !busy && (
-                  <span style={{ position:'absolute', top:12, right:12, width:9, height:9,
-                    borderRadius:'50%', background:meta.color,
-                    animation:'pulseRing 1.8s ease-out infinite' }}/>
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                    background: `linear-gradient(90deg, transparent, ${meta.color}, transparent)`,
+                    animation: 'waterFlow 2s linear infinite',
+                  }}/>
                 )}
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-                  <div style={{ width:44, height:44, borderRadius:14,
-                    background: on ? meta.color+'22' : '#f3f4f6',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:22, transition:'all 0.3s',
-                    filter: on ? 'none' : 'grayscale(0.5)', flexShrink:0 }}>
+
+                {/* Main row */}
+                <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+
+                  {/* Icon — large, vivid when ON */}
+                  <div style={{
+                    width: 58, height: 58, borderRadius: 18, flexShrink: 0,
+                    background: on
+                      ? `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`
+                      : '#f3f4f6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 28,
+                    boxShadow: on ? `0 6px 20px ${meta.glow}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'none',
+                    filter: !on && !busy ? 'grayscale(0.6) opacity(0.6)' : 'none',
+                    transition: 'all 0.35s ease',
+                    position: 'relative',
+                  }}>
                     {meta.icon}
+                    {/* Water drop drip when ON */}
+                    {on && !busy && (
+                      <span style={{
+                        position: 'absolute', bottom: -2, left: '50%',
+                        transform: 'translateX(-50%)',
+                        fontSize: 10, animation: 'waterDripIcon 1.8s ease-in infinite',
+                        opacity: 0.8,
+                      }}>💧</span>
+                    )}
                   </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:800, fontSize:14, color: on ? meta.color : '#1f2937' }}>
-                      {zoneNames[key] || meta.label}
-                    </div>
-                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.06em',
-                      textTransform:'uppercase', color: busy ? '#9ca3af' : on ? meta.color : '#9ca3af', marginTop:2 }}>
-                      {busy ? 'Updating…' : on ? '● Running' : '○ Idle'}
+
+                  {/* Labels */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontWeight: 900, fontSize: 16,
+                      color: on ? meta.color : 'var(--ink)',
+                      letterSpacing: '-0.02em', lineHeight: 1.1,
+                      transition: 'color 0.3s',
+                    }}>{label}</div>
+
+                    {/* Status badge */}
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {busy ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${meta.color}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }}/>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: meta.color }}>Updating…</span>
+                        </div>
+                      ) : on ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: `${meta.color}20`, border: `1px solid ${meta.color}40` }}>
+                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, boxShadow: `0 0 6px ${meta.color}`, animation: 'pulseRing 1.5s infinite' }}/>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: meta.color, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Running</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: 'var(--fog)', border: '1px solid var(--haze)' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--dust)', opacity: 0.5 }}/>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--dust)', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Idle</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <Toggle on={on} loading={busy} disabled={!isOnline} color={meta.color}
-                    onToggle={()=>toggle(key)}/>
+
+                  {/* Toggle — larger */}
+                  <Toggle on={on} loading={busy} disabled={!isOnline} color={meta.color} onToggle={() => toggle(key)} />
                 </div>
-                {/* Quick timer presets */}
-                <div style={{ display:'flex', gap:6 }}>
+
+                {/* Timer preset row */}
+                <div style={{
+                  display: 'flex', gap: 6, padding: '0 16px 16px',
+                }}>
                   {DURATION_PRESETS.map(p => (
-                    <button key={p.s} disabled={!isOnline || busy} onClick={() => {
-                      setOptimistic(s => ({...s,[key]:true}));
-                      send('water_for', {target: key, duration: p.s});
-                    }} style={{
-                      flex:1, padding:'8px 0', borderRadius:10, border:'none',
-                      background: meta.color+'18', color: meta.color,
-                      fontSize:11, fontWeight:700, cursor: isOnline ? 'pointer':'not-allowed',
-                      opacity: isOnline ? 1 : 0.4, transition:'background 0.15s',
-                    }}>{p.l}</button>
+                    <button key={p.s}
+                      disabled={!isOnline || busy}
+                      onClick={() => {
+                        setOptimistic(s => ({ ...s, [key]: true }));
+                        send('water_for', { target: key, duration: p.s });
+                      }}
+                      style={{
+                        flex: 1, padding: '9px 0', borderRadius: 12, border: 'none',
+                        background: on ? `${meta.color}28` : 'var(--fog)',
+                        color: on ? meta.color : 'var(--dust)',
+                        fontSize: 12, fontWeight: 800,
+                        cursor: isOnline && !busy ? 'pointer' : 'not-allowed',
+                        opacity: isOnline ? 1 : 0.35,
+                        transition: 'all 0.15s',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >{p.l}</button>
                   ))}
                 </div>
               </div>
             );
           })}
 
-          {/* Stop All */}
-          <button onClick={()=>{ setOptimistic({}); send('stop_all'); }}
-            disabled={!isOnline} style={{
-              width:'100%', padding:'16px 0', borderRadius:16, border:'none',
-              background: isOnline ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : '#e5e7eb',
-              color: isOnline ? '#fff' : '#9ca3af', fontSize:15, fontWeight:900,
+          {/* ── Stop Everything ── */}
+          <button
+            onClick={() => { setOptimistic({}); send('stop_all'); }}
+            disabled={!isOnline}
+            style={{
+              width: '100%', padding: '17px 0', borderRadius: 18, border: 'none',
+              background: isOnline
+                ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'
+                : 'var(--haze)',
+              color: isOnline ? '#fff' : 'var(--dust)',
+              fontSize: 16, fontWeight: 900,
               cursor: isOnline ? 'pointer' : 'not-allowed',
-              boxShadow: isOnline ? '0 4px 0 #991b1b, 0 8px 24px rgba(220,38,38,0.35)' : 'none',
-              transition:'all 0.2s', letterSpacing:'-0.01em',
-            }}>
+              boxShadow: isOnline ? '0 4px 0 #7f1d1d, 0 8px 28px rgba(220,38,38,0.40)' : 'none',
+              transition: 'all 0.15s',
+              letterSpacing: '-0.02em',
+            }}
+          >
             ■ Stop Everything
           </button>
 
