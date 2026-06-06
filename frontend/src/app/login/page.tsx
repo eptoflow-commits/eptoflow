@@ -6,16 +6,16 @@ import { useAuth } from '@/lib/auth';
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [err,       setErr]       = useState<string | null>(null);
+  const [busy,      setBusy]      = useState(false);
+  const [mounted,   setMounted]   = useState(false);
   const [splashing, setSplashing] = useState(false);
+  const [pwVisible, setPwVisible] = useState(false);
 
   useEffect(() => {
-    // tiny delay so CSS transition fires on mount
-    const t = setTimeout(() => setMounted(true), 30);
+    const t = setTimeout(() => setMounted(true), 40);
     return () => clearTimeout(t);
   }, []);
 
@@ -24,9 +24,8 @@ export default function LoginPage() {
     setErr(null); setBusy(true);
     try {
       await login(email, password);
-      // trigger splash then navigate
       setSplashing(true);
-      setTimeout(() => router.replace('/dashboard'), 900);
+      setTimeout(() => router.replace('/dashboard'), 1100);
     } catch (e: any) {
       setErr(e.message || 'Login failed');
       setBusy(false);
@@ -36,231 +35,242 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @keyframes logoIn {
-          0%  { opacity:0; transform:scale(0.82) translateY(-18px); }
-          60% { opacity:1; transform:scale(1.04) translateY(2px); }
-          100%{ opacity:1; transform:scale(1) translateY(0); }
+        /* ── Animations ── */
+        @keyframes leafDraw {
+          from { stroke-dashoffset: 600; opacity: 0; }
+          to   { stroke-dashoffset: 0;   opacity: 1; }
         }
-        @keyframes formIn {
-          from { opacity:0; transform:translateY(32px); }
+        @keyframes logoScale {
+          0%   { opacity:0; transform:scale(0.7) translateY(-12px); }
+          60%  { opacity:1; transform:scale(1.04) translateY(2px); }
+          100% { opacity:1; transform:scale(1) translateY(0); }
+        }
+        @keyframes formRise {
+          from { opacity:0; transform:translateY(28px); }
           to   { opacity:1; transform:translateY(0); }
         }
-        @keyframes splash {
-          0%   { clip-path:circle(0% at 50% 50%); opacity:1; }
-          70%  { clip-path:circle(80% at 50% 50%); opacity:1; }
-          100% { clip-path:circle(150% at 50% 50%); opacity:1; }
+        @keyframes splashWave {
+          0%   { clip-path:circle(0% at 50% 50%); }
+          100% { clip-path:circle(160% at 50% 50%); }
         }
-        @keyframes droplet {
-          0%   { transform:scale(1); opacity:0.6; }
-          100% { transform:scale(2.8); opacity:0; }
+        @keyframes particleBurst {
+          0%   { transform:translate(0,0) scale(1); opacity:0.9; }
+          100% { transform:translate(var(--tx),var(--ty)) scale(0); opacity:0; }
         }
-        @keyframes checkPop {
-          0%  { transform:scale(0) rotate(-20deg); opacity:0; }
-          60% { transform:scale(1.2) rotate(4deg); opacity:1; }
-          100%{ transform:scale(1) rotate(0deg); opacity:1; }
+        @keyframes welcomeIn {
+          from { opacity:0; transform:scale(0.85) translateY(12px); }
+          60%  { transform:scale(1.04); }
+          to   { opacity:1; transform:scale(1) translateY(0); }
         }
-        .login-logo {
-          animation: logoIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
+        @keyframes shimmerBtn {
+          0%   { background-position:200% 0; }
+          100% { background-position:-200% 0; }
         }
-        .login-form {
-          opacity:0; transform:translateY(32px);
-          transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22,1,0.36,1);
+        @keyframes errorShake {
+          0%,100% { transform:translateX(0); }
+          20%     { transform:translateX(-6px); }
+          40%     { transform:translateX(6px); }
+          60%     { transform:translateX(-4px); }
+          80%     { transform:translateX(4px); }
         }
-        .login-form.in {
-          opacity:1; transform:translateY(0);
-        }
-        .splash-overlay {
+
+        /* ── Splash ── */
+        .splash {
           position:fixed; inset:0; z-index:9999;
-          background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%);
+          background:linear-gradient(160deg,#060F0A 0%,#0D5C3D 60%,#22C55E 100%);
           clip-path:circle(0% at 50% 50%);
-          animation: splash 0.9s cubic-bezier(0.4,0,0.2,1) forwards;
-          display:flex; align-items:center; justify-content:center;
-          flex-direction:column; gap:16px;
+          animation:splashWave 1.0s cubic-bezier(0.4,0,0.2,1) forwards;
+          display:flex; flex-direction:column;
+          align-items:center; justify-content:center; gap:18px;
         }
-        .splash-ring {
-          position:absolute;
-          width:180px; height:180px;
-          border-radius:50%;
-          border:4px solid rgba(255,255,255,0.4);
-          animation:droplet 0.9s ease-out forwards;
+        .particle {
+          position:absolute; width:10px; height:10px; border-radius:50%;
+          background:#22C55E; animation:particleBurst 0.9s ease-out forwards;
         }
-        .splash-check {
-          font-size:72px;
-          animation:checkPop 0.5s 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+
+        /* ── Form ── */
+        .login-wrap {
+          opacity:0; transform:translateY(28px);
+          transition:opacity 0.55s ease, transform 0.55s cubic-bezier(0.22,1,0.36,1);
         }
-        .splash-text {
-          color:#fff; font-size:20px; font-weight:800; letter-spacing:-0.02em;
-          animation:checkPop 0.5s 0.45s ease both;
+        .login-wrap.in { opacity:1; transform:translateY(0); }
+
+        /* ── Input focus ring ── */
+        .ep-input:focus { outline:none; border-color:#0D5C3D !important; background:white !important; box-shadow:0 0 0 3px rgba(13,92,61,0.14) !important; }
+
+        /* ── CTA button ── */
+        .ep-btn {
+          width:100%; padding:14px 0; border-radius:99px; border:none;
+          background:linear-gradient(135deg,#0D5C3D 0%,#15803D 100%);
+          color:white; font-size:15px; font-weight:800; letter-spacing:-0.01em;
+          cursor:pointer; position:relative; overflow:hidden;
+          box-shadow:0 4px 0 #052E1C, 0 8px 28px rgba(13,92,61,0.45);
+          transition:transform 0.12s, box-shadow 0.12s;
+          font-family:inherit;
         }
-        .btn-signin {
-          width:100%; padding:13px 0;
-          border-radius:50px; border:none;
-          background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
-          color:#fff; font-size:15px; font-weight:800;
-          letter-spacing:-0.01em; cursor:pointer;
-          box-shadow: 0 4px 0 #047857, 0 8px 24px rgba(5,150,105,0.4);
-          transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-          position:relative; overflow:hidden;
-        }
-        .btn-signin:not(:disabled):hover {
-          transform:translateY(-2px);
-          box-shadow:0 6px 0 #047857, 0 12px 32px rgba(5,150,105,0.5);
-        }
-        .btn-signin:not(:disabled):active {
-          transform:translateY(2px);
-          box-shadow:0 2px 0 #047857, 0 4px 12px rgba(5,150,105,0.3);
-        }
-        .btn-signin:disabled { opacity:0.65; cursor:not-allowed; box-shadow:none; }
-        .btn-signin .shimmer {
-          position:absolute; inset:0;
-          background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.35) 50%,transparent 60%);
+        .ep-btn:not(:disabled):hover  { transform:translateY(-1px); box-shadow:0 5px 0 #052E1C, 0 12px 36px rgba(13,92,61,0.55); }
+        .ep-btn:not(:disabled):active { transform:translateY(2px);  box-shadow:0 2px 0 #052E1C, 0 4px 14px rgba(13,92,61,0.30); }
+        .ep-btn:disabled { opacity:0.6; cursor:not-allowed; box-shadow:none; }
+        .ep-btn-shimmer {
+          position:absolute; inset:0; pointer-events:none;
+          background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.28) 50%,transparent 60%);
           background-size:200% 100%;
-          animation:shimmerSlide 2s infinite;
-        }
-        @keyframes shimmerSlide {
-          0%  { background-position:200% 0; }
-          100%{ background-position:-200% 0; }
+          animation:shimmerBtn 2.2s infinite;
         }
       `}</style>
 
-      {/* Splash overlay on successful login */}
+      {/* ── Splash overlay ── */}
       {splashing && (
-        <div className="splash-overlay">
-          <div className="splash-ring" />
-          <div className="splash-ring" style={{ animationDelay:'0.12s', width:240, height:240 }}/>
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative', zIndex:1 }}>
-            <div style={{
-              width:80, height:80, borderRadius:24,
-              background:'rgba(255,255,255,0.22)', backdropFilter:'blur(12px)',
-              border:'2px solid rgba(255,255,255,0.4)',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:40,
-              animation:'checkPop 0.5s 0.25s cubic-bezier(0.34,1.56,0.64,1) both',
-            }}>🌱</div>
-            <div className="splash-text">Welcome to Eptoflow</div>
-            <div style={{ fontSize:13, color:'rgba(255,255,255,0.7)', fontWeight:600, animation:'checkPop 0.5s 0.5s ease both' }}>
-              Smart Irrigation · Starting…
-            </div>
+        <div className="splash">
+          {/* Particle burst */}
+          {[...Array(8)].map((_,i) => (
+            <div key={i} className="particle" style={{
+              '--tx': `${Math.cos(i*45*Math.PI/180)*80}px`,
+              '--ty': `${Math.sin(i*45*Math.PI/180)*80}px`,
+              animationDelay:`${i*0.05}s`,
+              top:'50%', left:'50%', transform:'translate(-50%,-50%)',
+            } as any}/>
+          ))}
+
+          {/* Icon */}
+          <div style={{
+            width:88, height:88, borderRadius:28,
+            background:'rgba(255,255,255,0.15)', backdropFilter:'blur(16px)',
+            border:'2px solid rgba(255,255,255,0.30)',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:44,
+            animation:'welcomeIn 0.55s 0.25s cubic-bezier(0.34,1.56,0.64,1) both',
+            boxShadow:'0 16px 48px rgba(0,0,0,0.30)',
+          }}>🌱</div>
+
+          {/* Text */}
+          <div style={{ textAlign:'center', animation:'welcomeIn 0.5s 0.45s ease both' }}>
+            <div style={{ fontSize:26, fontWeight:900, color:'#fff', letterSpacing:'-0.03em' }}>Welcome back!</div>
+            <div style={{ fontSize:14, color:'rgba(255,255,255,0.70)', marginTop:4, fontWeight:600 }}>Starting your garden dashboard…</div>
           </div>
         </div>
       )}
 
+      {/* ── Page ── */}
       <div style={{
-        minHeight:'100vh',
-        display:'flex', alignItems:'center', justifyContent:'center',
-        padding:'24px',
-        background:'linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #ecfdf5 100%)',
+        minHeight:'100vh', display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', padding:'28px 20px',
+        background:'linear-gradient(160deg,#f0fdf4 0%,#ffffff 55%,#ecfdf5 100%)',
+        position:'relative', overflow:'hidden',
       }}>
-        <div style={{ width:'100%', maxWidth:360 }}>
+        {/* Ambient background blobs */}
+        <div style={{ position:'absolute', top:-80, right:-60, width:280, height:280, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,197,94,0.10) 0%,transparent 70%)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', bottom:-60, left:-40, width:220, height:220, borderRadius:'50%', background:'radial-gradient(circle,rgba(14,165,233,0.07) 0%,transparent 70%)', pointerEvents:'none' }}/>
 
-          {/* Logo */}
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:28 }}>
-            <img
-              src="/logo.jpeg"
-              alt="Eptoflow"
-              className="login-logo"
-              style={{ width:'100%', maxWidth:280, height:'auto', borderRadius:16,
-                boxShadow:'0 8px 32px rgba(5,150,105,0.12)' }}
-            />
+        <div style={{ width:'100%', maxWidth:360, position:'relative' }}>
+
+          {/* Brand hero */}
+          <div style={{ textAlign:'center', marginBottom:32, animation:'logoScale 0.7s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div style={{
+              width:80, height:80, borderRadius:26,
+              background:'linear-gradient(135deg,#0D5C3D,#15803D)',
+              display:'inline-flex', alignItems:'center', justifyContent:'center',
+              fontSize:42, marginBottom:16,
+              boxShadow:'0 12px 40px rgba(13,92,61,0.40), 0 4px 12px rgba(13,92,61,0.20)',
+            }}>🌱</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'#0A1628', letterSpacing:'-0.04em', lineHeight:1 }}>Eptoflow</div>
+            <div style={{ fontSize:13, color:'#6B7280', fontWeight:500, marginTop:5, letterSpacing:'0.04em' }}>Smart Irrigation Platform</div>
           </div>
 
           {/* Form card */}
-          <form
-            onSubmit={submit}
-            className={`login-form${mounted ? ' in' : ''}`}
-            style={{
-              background:'#ffffff',
-              borderRadius:24,
-              border:'1.5px solid #d1fae5',
-              boxShadow:'0 20px 60px rgba(5,150,105,0.1), 0 4px 16px rgba(0,0,0,0.04)',
-              padding:'28px 24px',
-            }}
-          >
-            <div style={{ textAlign:'center', marginBottom:22 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#059669', letterSpacing:'0.08em',
-                textTransform:'uppercase', marginBottom:6 }}>
-                🌿 Eptoflow
+          <div className={`login-wrap${mounted ? ' in' : ''}`} style={{
+            background:'#fff',
+            borderRadius:28,
+            border:'1.5px solid #E4EFE9',
+            boxShadow:'0 24px 64px rgba(13,92,61,0.09), 0 4px 16px rgba(0,0,0,0.04)',
+            padding:'28px 26px',
+          }}>
+            <div style={{ textAlign:'center', marginBottom:24 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'#0D5C3D', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:6 }}>
+                Sign in
               </div>
-              <h1 style={{ fontSize:22, fontWeight:900, color:'#0f172a', margin:0,
-                letterSpacing:'-0.03em' }}>Welcome back</h1>
-              <p style={{ fontSize:13, color:'#64748b', margin:'4px 0 0' }}>
-                Sign in to your account
-              </p>
+              <div style={{ fontSize:19, fontWeight:900, color:'#0A1628', letterSpacing:'-0.03em' }}>Welcome back</div>
             </div>
 
+            {/* Error */}
             {err && (
               <div style={{
-                fontSize:13, color:'#dc2626', background:'#fef2f2',
-                border:'1.5px solid #fecaca', borderRadius:10,
-                padding:'10px 14px', marginBottom:16,
-                display:'flex', alignItems:'center', gap:8,
+                background:'#fef2f2', border:'1.5px solid #fecaca', borderRadius:13,
+                padding:'11px 14px', marginBottom:18, display:'flex', alignItems:'center', gap:9,
+                animation:'errorShake 0.4s ease',
               }}>
-                <span>⚠️</span> {err}
+                <span style={{ fontSize:16 }}>⚠️</span>
+                <span style={{ fontSize:13, color:'#dc2626', fontWeight:600 }}>{err}</span>
               </div>
             )}
 
-            <div style={{ marginBottom:14 }}>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#64748b',
-                textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:6 }}>
-                Email address
-              </label>
-              <input
-                type="email"
-                value={email}
-                placeholder="you@example.com"
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                style={{
-                  width:'100%', padding:'12px 14px', borderRadius:12,
-                  border:'1.5px solid #e2e8f0', fontSize:14, color:'#0f172a',
-                  background:'#f8fafc', outline:'none', boxSizing:'border-box',
-                  transition:'border-color 0.15s, background 0.15s',
-                }}
-                onFocus={e => { e.target.style.borderColor='#059669'; e.target.style.background='#fff'; }}
-                onBlur={e => { e.target.style.borderColor='#e2e8f0'; e.target.style.background='#f8fafc'; }}
-              />
-            </div>
+            <form onSubmit={submit}>
+              {/* Email */}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:7 }}>Email address</label>
+                <input
+                  type="email" value={email} placeholder="you@example.com"
+                  onChange={e => setEmail(e.target.value)}
+                  required autoComplete="email"
+                  className="ep-input"
+                  style={{
+                    width:'100%', padding:'13px 16px', borderRadius:14,
+                    border:'1.5px solid #E4EFE9', fontSize:15, color:'#0A1628',
+                    background:'#F8FAF9', outline:'none', boxSizing:'border-box',
+                    transition:'border-color 0.15s, background 0.15s, box-shadow 0.15s',
+                    fontFamily:'inherit',
+                  }}
+                  onFocus={e => { e.target.style.borderColor='#0D5C3D'; e.target.style.background='white'; e.target.style.boxShadow='0 0 0 3px rgba(13,92,61,0.12)'; }}
+                  onBlur={e => { e.target.style.borderColor='#E4EFE9'; e.target.style.background='#F8FAF9'; e.target.style.boxShadow='none'; }}
+                />
+              </div>
 
-            <div style={{ marginBottom:22 }}>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#64748b',
-                textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:6 }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                placeholder="••••••••"
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                style={{
-                  width:'100%', padding:'12px 14px', borderRadius:12,
-                  border:'1.5px solid #e2e8f0', fontSize:14, color:'#0f172a',
-                  background:'#f8fafc', outline:'none', boxSizing:'border-box',
-                  transition:'border-color 0.15s, background 0.15s',
-                }}
-                onFocus={e => { e.target.style.borderColor='#059669'; e.target.style.background='#fff'; }}
-                onBlur={e => { e.target.style.borderColor='#e2e8f0'; e.target.style.background='#f8fafc'; }}
-              />
-            </div>
+              {/* Password */}
+              <div style={{ marginBottom:8 }}>
+                <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:7 }}>Password</label>
+                <div style={{ position:'relative' }}>
+                  <input
+                    type={pwVisible ? 'text' : 'password'} value={password} placeholder="••••••••"
+                    onChange={e => setPassword(e.target.value)}
+                    required autoComplete="current-password"
+                    className="ep-input"
+                    style={{
+                      width:'100%', padding:'13px 44px 13px 16px', borderRadius:14,
+                      border:'1.5px solid #E4EFE9', fontSize:15, color:'#0A1628',
+                      background:'#F8FAF9', outline:'none', boxSizing:'border-box',
+                      transition:'border-color 0.15s, background 0.15s, box-shadow 0.15s',
+                      fontFamily:'inherit',
+                    }}
+                    onFocus={e => { e.target.style.borderColor='#0D5C3D'; e.target.style.background='white'; e.target.style.boxShadow='0 0 0 3px rgba(13,92,61,0.12)'; }}
+                    onBlur={e => { e.target.style.borderColor='#E4EFE9'; e.target.style.background='#F8FAF9'; e.target.style.boxShadow='none'; }}
+                  />
+                  <button type="button" onClick={() => setPwVisible(v=>!v)} style={{
+                    position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
+                    background:'none', border:'none', cursor:'pointer', padding:4,
+                    fontSize:16, color:'#9CA3AF', lineHeight:1,
+                  }}>
+                    {pwVisible ? '🙈' : '👁'}
+                  </button>
+                </div>
+              </div>
 
-            <div style={{ textAlign:'right', marginTop:-8, marginBottom:4 }}>
-              <a href="/forgot-password" style={{ fontSize:12, color:'#059669', textDecoration:'none', fontWeight:600 }}>
-                Forgot password?
-              </a>
-            </div>
+              <div style={{ textAlign:'right', marginBottom:22 }}>
+                <a href="/forgot-password" style={{ fontSize:12, color:'#0D5C3D', textDecoration:'none', fontWeight:700 }}>
+                  Forgot password?
+                </a>
+              </div>
 
-            <button type="submit" disabled={busy} className="btn-signin">
-              <span className="shimmer" />
-              <span style={{ position:'relative', zIndex:1 }}>
-                {busy ? '🌿 Signing in…' : '🔐 Sign in to Eptoflow'}
-              </span>
-            </button>
+              <button type="submit" disabled={busy} className="ep-btn">
+                <span className="ep-btn-shimmer"/>
+                <span style={{ position:'relative', zIndex:1 }}>
+                  {busy ? '🌱 Signing in…' : 'Sign in to Eptoflow →'}
+                </span>
+              </button>
+            </form>
 
-            <p style={{ textAlign:'center', fontSize:11, color:'#94a3b8', marginTop:16 }}>
-              Access is provided by your administrator.
+            <p style={{ textAlign:'center', fontSize:11, color:'#9CA3AF', marginTop:20, lineHeight:1.6 }}>
+              Access is managed by your administrator.<br/>Contact support if you need help.
             </p>
-          </form>
+          </div>
         </div>
       </div>
     </>

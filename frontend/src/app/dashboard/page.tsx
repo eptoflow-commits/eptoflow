@@ -282,284 +282,247 @@ export default function DashboardPage() {
   const planColor = sub?.plan_name === 'premium' ? '#7c3aed' : sub?.plan_name === 'standard' ? '#0284c7' : '#059669';
   const planDark = sub?.plan_name === 'premium' ? '#6d28d9' : sub?.plan_name === 'standard' ? '#0369a1' : '#047857';
 
+  const onlineDevices = devices.filter(d => d.status === 'online').length;
+
   return (
     <AppShell>
       <style>{`
-        @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes dropIn   { 0%{opacity:0;transform:scale(0.88) translateY(-8px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
-        @keyframes spin     { to{transform:rotate(360deg)} }
-        .fade-up { animation: fadeUp 0.45s ease both; }
-        .drop-in { animation: dropIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
-        .shimmer-bg {
-          background: linear-gradient(105deg,#e2e8f0 40%,#f8fafc 50%,#e2e8f0 60%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-        .device-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(5,150,105,0.15)!important; }
-        .notif-card { transition:all 0.2s; }
-        .notif-card:hover { transform:translateX(3px); }
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.75)}}
+        @keyframes shimmerBg{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes heroIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes dropIn{0%{opacity:0;transform:scale(0.9)}60%{transform:scale(1.02)}100%{opacity:1;transform:scale(1)}}
+        .sk{background:linear-gradient(105deg,#e4efe9 35%,#f0f7f3 50%,#e4efe9 65%);background-size:200% 100%;animation:shimmerBg 1.7s ease-in-out infinite;border-radius:16px}
+        .device-row{transition:transform 0.15s ease,box-shadow 0.15s ease}
+        .device-row:active{transform:scale(0.975)}
       `}</style>
 
-      {/* ── Greeting ── */}
-      <div className="fade-up" style={{ marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <div style={{ fontSize:22, fontWeight:900, color:'#0f172a', letterSpacing:'-0.03em', lineHeight:1.2 }}>
-              {greetEmoji} {greeting}, {firstName}!
-            </div>
-            <div style={{ fontSize:13, color:'#94a3b8', marginTop:3, fontWeight:500 }}>
+      {/* ══════════════════════════════════════════════════
+          HERO — full-bleed dark green, Apple Weather style
+      ══════════════════════════════════════════════════ */}
+      <div style={{
+        margin:'0 -16px 20px',
+        background:'linear-gradient(160deg,#060F0A 0%,#0A2218 45%,#0D5C3D 100%)',
+        position:'relative', overflow:'hidden',
+        animation:'heroIn 0.5s ease both',
+      }}>
+        {/* Ambient glow blobs */}
+        <div style={{ position:'absolute', top:-60, right:-40, width:220, height:220, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,197,94,0.15) 0%,transparent 70%)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', bottom:-40, left:-30, width:180, height:180, borderRadius:'50%', background:'radial-gradient(circle,rgba(14,165,233,0.10) 0%,transparent 70%)', pointerEvents:'none' }}/>
+
+        <div style={{ padding:'28px 24px 0', position:'relative' }}>
+          {/* Date + status row */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', fontWeight:600, letterSpacing:'0.05em' }}>
               {new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' })}
             </div>
+            <div style={{ display:'flex', gap:8 }}>
+              {onlineDevices > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:20, background:'rgba(34,197,94,0.18)', border:'1px solid rgba(34,197,94,0.3)' }}>
+                  <div style={{ width:6, height:6, borderRadius:'50%', background:'#22C55E', animation:'pulse 2s infinite' }}/>
+                  <span style={{ fontSize:11, color:'#22C55E', fontWeight:700 }}>{onlineDevices} online</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{
-            width:48, height:48, borderRadius:'50%',
-            background:`linear-gradient(135deg,${planColor},${planDark})`,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:22, boxShadow:`0 4px 16px ${planColor}50`,
-          }}>🪴</div>
-        </div>
-      </div>
 
-      {/* ── Weather Card ── */}
-      <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.05s' }}>
-        {weatherLoading ? (
-          <div style={{ borderRadius:20, padding:'18px 20px', background:'#f1f5f9', height:100 }} className="shimmer-bg"/>
-        ) : weather === null ? (
-          <div style={{
-            borderRadius:20, padding:'14px 18px',
-            background:'linear-gradient(135deg,#f0fdf4,#dcfce7)',
-            border:'1.5px solid #bbf7d0', display:'flex', alignItems:'center', gap:12,
-          }}>
-            <span style={{ fontSize:28 }}>🌿</span>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:13, color:'#166534', fontWeight:700 }}>Weather unavailable</div>
-              <div style={{ fontSize:11, color:'#15803d', marginTop:2 }}>Check your internet connection</div>
+          {/* Greeting */}
+          <div style={{ marginBottom:22 }}>
+            <div style={{ fontSize:30, fontWeight:900, color:'#fff', letterSpacing:'-0.04em', lineHeight:1.1 }}>
+              {greeting},
             </div>
-            <button onClick={() => { setWeatherLoading(true); fetchWeather().then(w => { setWeather(w); setWeatherLoading(false); }); }}
-              style={{ padding:'8px 14px', borderRadius:10, border:'none', background:'#059669', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              Retry
-            </button>
+            <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-0.04em', lineHeight:1.1,
+              background:'linear-gradient(90deg,#22C55E,#0EA5E9)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+              {firstName} {greetEmoji}
+            </div>
           </div>
-        ) : (
-          <div className="drop-in" style={{
-            borderRadius:22, overflow:'hidden',
-            background: weather.isDay
-              ? 'linear-gradient(135deg,#0ea5e9 0%,#6366f1 100%)'
-              : 'linear-gradient(135deg,#1e3a5f 0%,#312e81 100%)',
-            boxShadow:'0 8px 32px rgba(14,165,233,0.3)',
-          }}>
-            {/* Top row */}
-            <div style={{ padding:'18px 20px 10px', display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-              <div>
-                <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', fontWeight:600, marginBottom:2 }}>
-                  📍 {weather.city}
-                </div>
-                <div style={{ display:'flex', alignItems:'flex-end', gap:8 }}>
-                  <div style={{ fontSize:52, fontWeight:900, color:'#fff', letterSpacing:'-0.04em', lineHeight:1 }}>
-                    {weather.temp}°
-                  </div>
-                  <div style={{ marginBottom:6 }}>
-                    <div style={{ fontSize:15, color:'rgba(255,255,255,0.9)', fontWeight:700 }}>
-                      {wmo(weather.code).emoji} {wmo(weather.code).label}
-                    </div>
-                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.65)' }}>
-                      Feels like {weather.feelsLike}°
-                    </div>
-                  </div>
+
+          {/* Weather summary row — inside hero */}
+          {weatherLoading ? (
+            <div style={{ display:'flex', gap:10, marginBottom:20 }}>
+              <div className="sk" style={{ width:100, height:36, background:'rgba(255,255,255,0.08)' }}/>
+              <div className="sk" style={{ width:80, height:36, background:'rgba(255,255,255,0.08)' }}/>
+            </div>
+          ) : weather ? (
+            <div style={{ display:'flex', alignItems:'center', gap:0, marginBottom:20, overflow:'hidden', animation:'dropIn 0.6s 0.1s both' }}>
+              {/* Temp pill */}
+              <div style={{
+                display:'flex', alignItems:'center', gap:10,
+                padding:'10px 16px 10px 14px',
+                background:'rgba(255,255,255,0.10)',
+                borderRadius:'16px 0 0 16px',
+                border:'1px solid rgba(255,255,255,0.12)',
+                borderRight:'none',
+              }}>
+                <div style={{ fontSize:32, fontWeight:900, color:'#fff', letterSpacing:'-0.04em', lineHeight:1 }}>{weather.temp}°</div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:'rgba(255,255,255,0.9)' }}>{wmo(weather.code).emoji} {wmo(weather.code).label}</div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)' }}>📍 {weather.city}</div>
                 </div>
               </div>
-              <div style={{ textAlign:'right', marginTop:4 }}>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.06em' }}>Today</div>
-                <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end' }}>
-                  {[
-                    ['💧', `${weather.humidity}% humidity`],
-                    ['💨', `${weather.windKph} km/h`],
-                    ['🌧️', `${weather.rainMm.toFixed(1)}mm rain`],
-                    ['☀️', `UV ${weather.uvIndex}`],
-                  ].map(([icon, val]) => (
-                    <div key={val as string} style={{ fontSize:12, color:'rgba(255,255,255,0.8)', display:'flex', gap:5, alignItems:'center' }}>
-                      <span>{icon}</span> {val}
-                    </div>
-                  ))}
-                </div>
+              {/* Stats pills */}
+              <div style={{
+                display:'grid', gridTemplateColumns:'1fr 1fr',
+                background:'rgba(255,255,255,0.07)',
+                border:'1px solid rgba(255,255,255,0.10)',
+                borderRadius:'0 16px 16px 0', overflow:'hidden',
+              }}>
+                {[
+                  [`💧`, `${weather.humidity}%`],
+                  [`💨`, `${weather.windKph}km/h`],
+                  [`🌧️`, `${weather.rainMm.toFixed(1)}mm`],
+                  [`☀️`, `UV ${weather.uvIndex}`],
+                ].map(([icon, val]) => (
+                  <div key={val} style={{ padding:'7px 12px', display:'flex', alignItems:'center', gap:5, borderBottom:'0.5px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontSize:13 }}>{icon}</span>
+                    <span style={{ fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>{val}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            {/* Watering advice strip */}
-            <WateringAdviceStrip weather={weather} />
+          ) : null}
+        </div>
+
+        {/* Watering advice strip at bottom of hero */}
+        {weather && (
+          <div style={{ padding:'10px 24px 20px', position:'relative' }}>
+            {(() => {
+              const advice = wateringAdvice(weather);
+              return (
+                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'rgba(255,255,255,0.08)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', borderRadius:14, border:'1px solid rgba(255,255,255,0.10)' }}>
+                  <span style={{ fontSize:20 }}>{advice.icon}</span>
+                  <span style={{ fontSize:13, color:'rgba(255,255,255,0.85)', fontWeight:600 }}>{advice.msg}</span>
+                </div>
+              );
+            })()}
           </div>
         )}
+
+        {/* Wave bottom edge */}
+        <svg viewBox="0 0 400 28" style={{ display:'block', width:'100%', height:28, marginBottom:-1 }} preserveAspectRatio="none">
+          <path d="M0 28 L0 14 Q100 0 200 14 Q300 28 400 14 L400 28 Z" fill="var(--fog)"/>
+        </svg>
       </div>
 
-      {/* ── Air Quality Card ── */}
+      {/* ── AQI Card ── */}
       {!weatherLoading && weather && (
-        <AqiCard weather={weather} />
+        <div style={{ marginBottom:14, animation:'cardIn 0.4s 0.12s both' }}>
+          <AqiCard weather={weather} />
+        </div>
       )}
 
-      {/* ── Subscription card ── */}
-      <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.1s' }}>
+      {/* ── Plan card (condensed) ── */}
+      <div style={{ marginBottom:14, animation:'cardIn 0.4s 0.16s both' }}>
         {sub?.isActive ? (
           <div style={{
-            borderRadius:20,
-            background:`linear-gradient(135deg,${planColor} 0%,${planDark} 100%)`,
-            padding:'16px 20px', color:'#fff',
-            boxShadow:`0 8px 28px ${planColor}55`,
+            background:`linear-gradient(135deg,${planColor},${planDark})`,
+            borderRadius:22, padding:'16px 20px', color:'#fff',
+            boxShadow:`0 8px 28px ${planColor}50`,
+            display:'flex', alignItems:'center', gap:14,
             position:'relative', overflow:'hidden',
           }}>
-            {/* Decorative circles */}
-            <div style={{ position:'absolute', right:-20, top:-20, width:100, height:100, borderRadius:'50%', background:'rgba(255,255,255,0.08)' }}/>
-            <div style={{ position:'absolute', right:30, bottom:-30, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }}/>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', position:'relative' }}>
-              <div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)', textTransform:'uppercase', letterSpacing:'0.1em', fontWeight:700 }}>
-                  Active Plan
-                </div>
-                <div style={{ fontSize:24, fontWeight:900, letterSpacing:'-0.03em', marginTop:2, textTransform:'capitalize' }}>
-                  {sub.plan_name} ✨
-                </div>
+            <div style={{ position:'absolute', right:-16, top:-16, width:90, height:90, borderRadius:'50%', background:'rgba(255,255,255,0.07)' }}/>
+            <div style={{ flex:1, position:'relative' }}>
+              <div style={{ fontSize:10, color:'rgba(255,255,255,0.65)', textTransform:'uppercase', letterSpacing:'0.10em', fontWeight:700, marginBottom:3 }}>Active Plan</div>
+              <div style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.03em', textTransform:'capitalize' }}>{sub.plan_name} ✨</div>
+              <div style={{ marginTop:10, background:'rgba(255,255,255,0.18)', borderRadius:99, height:4 }}>
+                <div style={{ height:'100%', borderRadius:99, background:'rgba(255,255,255,0.9)', width:`${Math.min(100,((sub.daysRemaining??0)/30)*100)}%`, transition:'width 1s ease' }}/>
               </div>
-              <div style={{ textAlign:'right' }}>
-                <div style={{ fontSize:38, fontWeight:900, letterSpacing:'-0.04em', lineHeight:1 }}>
-                  {sub.daysRemaining}
-                </div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>days remaining</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', marginTop:5 }}>
+                Expires {new Date(sub.end_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
               </div>
             </div>
-            <div style={{ marginTop:12, background:'rgba(255,255,255,0.2)', borderRadius:99, height:6 }}>
-              <div style={{
-                height:'100%', borderRadius:99,
-                background:'rgba(255,255,255,0.9)',
-                width:`${Math.min(100, ((sub.daysRemaining ?? 0) / 30) * 100)}%`,
-                transition:'width 1s ease',
-                boxShadow:'0 0 8px rgba(255,255,255,0.6)',
-              }}/>
-            </div>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', marginTop:6 }}>
-              Expires {new Date(sub.end_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
+            <div style={{ textAlign:'right', position:'relative' }}>
+              <div style={{ fontSize:44, fontWeight:900, letterSpacing:'-0.05em', lineHeight:1 }}>{sub.daysRemaining}</div>
+              <div style={{ fontSize:10, color:'rgba(255,255,255,0.65)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>days left</div>
             </div>
           </div>
         ) : (
           <div style={{
-            borderRadius:20, padding:'16px 18px',
+            borderRadius:20, padding:'15px 18px',
             background:'linear-gradient(135deg,#fffbeb,#fef3c7)',
-            border:'2px solid #fcd34d',
-            boxShadow:'0 4px 16px rgba(251,191,36,0.2)',
+            border:'1.5px solid #fcd34d',
             display:'flex', alignItems:'center', gap:14,
           }}>
-            <div style={{ fontSize:36 }}>⚡</div>
+            <span style={{ fontSize:32 }}>⚡</span>
             <div style={{ flex:1 }}>
-              <div style={{ fontWeight:800, color:'#92400e', fontSize:15 }}>No active plan</div>
-              <div style={{ fontSize:12, color:'#b45309', marginTop:2 }}>Activate a plan to start automating your garden</div>
+              <div style={{ fontWeight:800, color:'#92400e', fontSize:14 }}>No active plan</div>
+              <div style={{ fontSize:12, color:'#b45309', marginTop:2 }}>Activate to start automating your garden</div>
             </div>
-            <Link href="/subscription" style={{
-              padding:'10px 16px', borderRadius:12, border:'none',
-              background:'linear-gradient(135deg,#d97706,#b45309)',
-              color:'#fff', fontWeight:800, fontSize:12, textDecoration:'none',
-              boxShadow:'0 4px 12px rgba(217,119,6,0.4)', flexShrink:0,
-            }}>Activate →</Link>
+            <Link href="/subscription" style={{ padding:'9px 16px', borderRadius:12, background:'linear-gradient(135deg,#d97706,#b45309)', color:'#fff', fontWeight:800, fontSize:12, textDecoration:'none', flexShrink:0 }}>Activate →</Link>
           </div>
         )}
       </div>
 
-      {/* ── Quick stats row ── */}
+      {/* ── Stats strip ── */}
       {sub?.isActive && (
-        <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.15s', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14, animation:'cardIn 0.4s 0.20s both' }}>
           {[
-            { icon:'📡', label:'Devices', val: devices.length, sub: devices.filter(d=>d.status==='online').length + ' online', color:'#059669' },
-            { icon:'🌿', label:'Online', val: devices.filter(d=>d.status==='online').length, sub: 'active now', color:'#0284c7' },
-            { icon:'💧', label:'Plan', val: sub.plan_name, sub: 'active', color: planColor, capitalize: true },
+            { label:'Devices', val:String(devices.length), sub:'total', icon:'📡', color:'var(--forest)' },
+            { label:'Online',  val:String(onlineDevices), sub:'right now', icon:'🟢', color:'#0EA5E9' },
+            { label:'Plan',    val:sub.plan_name, sub:'active', icon:'✨', color:planColor, cap:true },
           ].map(s => (
-            <div key={s.label} style={{
-              background:'#fff', borderRadius:16, padding:'12px 14px',
-              border:'1.5px solid #f1f5f9',
-              boxShadow:'0 2px 8px rgba(0,0,0,0.05)',
-            }}>
-              <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
-              <div style={{ fontSize:18, fontWeight:900, color:s.color, letterSpacing:'-0.02em', textTransform: s.capitalize ? 'capitalize' : 'none' }}>
-                {s.val}
-              </div>
-              <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>{s.sub}</div>
+            <div key={s.label} style={{ background:'#fff', borderRadius:18, padding:'13px 14px', border:'1px solid var(--haze)', boxShadow:'var(--el-1)' }}>
+              <div style={{ fontSize:18, marginBottom:5 }}>{s.icon}</div>
+              <div style={{ fontSize:19, fontWeight:900, color:s.color, letterSpacing:'-0.03em', textTransform:s.cap?'capitalize':'none', lineHeight:1.1 }}>{s.val}</div>
+              <div style={{ fontSize:10, color:'var(--dust)', fontWeight:600, marginTop:2 }}>{s.sub}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* ── Devices ── */}
-      <div className="fade-up" style={{ marginBottom:16, animationDelay:'0.2s' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-          <div style={{ fontWeight:800, color:'#1f2937', fontSize:15 }}>📡 Your Devices</div>
-          <Link href="/devices" style={{ fontSize:12, color:planColor, fontWeight:700, textDecoration:'none' }}>View all →</Link>
+      <div style={{ marginBottom:14, animation:'cardIn 0.4s 0.24s both' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--ink)', letterSpacing:'-0.01em' }}>Your Devices</div>
+          <Link href="/devices" style={{ fontSize:12, color:'var(--forest)', fontWeight:700, textDecoration:'none' }}>View all →</Link>
         </div>
+
         {devices.length === 0 ? (
-          <div style={{
-            borderRadius:18, padding:'28px 20px', textAlign:'center',
-            background:'linear-gradient(135deg,#f8fafc,#f1f5f9)',
-            border:'2px dashed #e2e8f0',
-          }}>
-            <div style={{ fontSize:40, marginBottom:10 }}>📡</div>
-            <div style={{ fontSize:14, fontWeight:700, color:'#374151', marginBottom:4 }}>No devices yet</div>
-            <div style={{ fontSize:12, color:'#9ca3af' }}>Contact your admin to add a device</div>
+          <div style={{ borderRadius:20, padding:'36px 24px', textAlign:'center', background:'#fff', border:'1.5px dashed var(--haze)' }}>
+            <div style={{ fontSize:44, marginBottom:12 }}>📡</div>
+            <div style={{ fontSize:15, fontWeight:800, color:'var(--ink)', marginBottom:5 }}>No devices yet</div>
+            <div style={{ fontSize:13, color:'var(--dust)' }}>Contact your admin to add a device</div>
           </div>
         ) : (
           <>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {devices.map(d => (
                 <Link key={d.id} href={`/device?id=${d.id}`} style={{ textDecoration:'none' }}>
-                  <div className="device-card" style={{
-                    background:'#fff', borderRadius:16, padding:'12px 16px',
-                    border:`1.5px solid ${d.status==='online' ? '#bbf7d0' : '#e5e7eb'}`,
-                    boxShadow:`0 2px 8px ${d.status==='online' ? 'rgba(5,150,105,0.08)' : 'rgba(0,0,0,0.04)'}`,
-                    display:'flex', alignItems:'center', gap:12,
-                    transition:'all 0.2s',
+                  <div className="device-row" style={{
+                    background:'#fff', borderRadius:18, padding:'14px 16px',
+                    border:`1.5px solid ${d.status==='online' ? 'var(--leaf)' : 'var(--haze)'}`,
+                    boxShadow: d.status==='online' ? '0 4px 16px rgba(13,92,61,0.10)' : 'var(--el-1)',
+                    display:'flex', alignItems:'center', gap:13,
                   }}>
                     <div style={{
-                      width:44, height:44, borderRadius:14, flexShrink:0,
-                      background: d.status==='online'
-                        ? `linear-gradient(135deg,${planColor},${planDark})`
-                        : '#f3f4f6',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:20, boxShadow: d.status==='online' ? `0 4px 12px ${planColor}40` : 'none',
-                    }}>
-                      {d.status==='online' ? '💧' : '💤'}
-                    </div>
+                      width:48, height:48, borderRadius:16, flexShrink:0,
+                      background: d.status==='online' ? 'linear-gradient(135deg,#0D5C3D,#15803D)' : '#f3f4f6',
+                      display:'flex', alignItems:'center', justifyContent:'center', fontSize:22,
+                      boxShadow: d.status==='online' ? '0 4px 14px rgba(13,92,61,0.35)' : 'none',
+                    }}>{d.status==='online' ? '💧' : '😴'}</div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:800, color:'#1f2937', fontSize:14, marginBottom:2 }}>{d.device_name}</div>
-                      <div style={{ fontSize:11, color:'#9ca3af', fontWeight:500 }}>{d.device_uid}</div>
+                      <div style={{ fontWeight:800, fontSize:15, color:'var(--ink)', letterSpacing:'-0.02em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.device_name}</div>
+                      <div style={{ fontSize:11, color:'var(--dust)', fontFamily:'monospace', marginTop:1 }}>{d.device_uid}</div>
                     </div>
-                    <div style={{
-                      display:'flex', alignItems:'center', gap:5,
-                      padding:'5px 10px', borderRadius:20,
-                      background: d.status==='online' ? '#dcfce7' : '#f3f4f6',
-                    }}>
-                      <div style={{
-                        width:7, height:7, borderRadius:'50%',
-                        background: d.status==='online' ? '#059669' : '#9ca3af',
-                        boxShadow: d.status==='online' ? '0 0 0 3px rgba(5,150,105,0.2)' : 'none',
-                        animation: d.status==='online' ? 'pulse 2s infinite' : 'none',
-                      }}/>
-                      <span style={{ fontSize:11, fontWeight:700, color: d.status==='online' ? '#059669' : '#9ca3af' }}>
-                        {d.status}
-                      </span>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 12px', borderRadius:20, background: d.status==='online' ? 'var(--sprout)' : '#f3f4f6' }}>
+                      <div style={{ width:7, height:7, borderRadius:'50%', background: d.status==='online' ? '#22C55E' : '#9ca3af', boxShadow: d.status==='online' ? '0 0 0 3px rgba(34,197,94,0.25)' : 'none', animation: d.status==='online' ? 'pulse 2s infinite' : 'none' }}/>
+                      <span style={{ fontSize:11, fontWeight:700, color: d.status==='online' ? 'var(--forest)' : '#9ca3af', textTransform:'capitalize' }}>{d.status}</span>
                     </div>
+                    <div style={{ color:'var(--haze)', fontSize:20, fontWeight:300 }}>›</div>
                   </div>
                 </Link>
               ))}
             </div>
 
-            {/* ── Premium: Zone naming + Voice control ── */}
+            {/* Premium voice + zone controls */}
             {sub?.plan_name === 'premium' && devices.length > 0 && (
-              <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:10 }}>
                 {devices.map(d => (
-                  <div key={d.id} style={{
-                    background:'#fff', borderRadius:16, padding:16,
-                    border:'1.5px solid #ede9fe',
-                    boxShadow:'0 2px 8px rgba(124,58,237,0.06)',
-                  }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                      <span>⚡</span>
-                      <span>{d.device_name} — Voice &amp; Zone Control</span>
-                      <span style={{ marginLeft:'auto', fontSize:10, background:'#ede9fe', color:'#7c3aed', padding:'2px 7px', borderRadius:20, fontWeight:600 }}>PREMIUM</span>
+                  <div key={d.id} style={{ background:'#fff', borderRadius:18, padding:'16px', border:'1.5px solid #ede9fe', boxShadow:'0 2px 8px rgba(124,58,237,0.07)' }}>
+                    <div style={{ fontWeight:700, fontSize:12, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                      <span>⚡</span><span>{d.device_name} — Voice &amp; Zone Control</span>
+                      <span style={{ marginLeft:'auto', fontSize:9, background:'#ede9fe', color:'#7c3aed', padding:'2px 8px', borderRadius:20, fontWeight:700, letterSpacing:'0.05em' }}>PREMIUM</span>
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                       <ZoneNameEditor deviceId={d.id} />
@@ -573,31 +536,23 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Quick actions ── */}
-      <div className="fade-up" style={{ animationDelay:'0.25s', marginBottom:16 }}>
+      {/* ── Quick Actions ── */}
+      <div style={{ marginBottom:16, animation:'cardIn 0.4s 0.28s both' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           {devices[0] && (
             <Link href={`/device?id=${devices[0].id}`} style={{ textDecoration:'none' }}>
-              <div style={{
-                background:`linear-gradient(135deg,${planColor},${planDark})`,
-                borderRadius:16, padding:'14px 16px',
-                boxShadow:`0 4px 16px ${planColor}40`,
-              }}>
-                <div style={{ fontSize:22, marginBottom:6 }}>💧</div>
-                <div style={{ fontWeight:800, fontSize:13, color:'#fff' }}>Control Device</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)', marginTop:2 }}>Manage valves & relays</div>
+              <div style={{ background:'linear-gradient(135deg,#0D5C3D,#15803D)', borderRadius:20, padding:'18px 16px', boxShadow:'0 6px 20px rgba(13,92,61,0.35)' }}>
+                <div style={{ fontSize:26, marginBottom:8 }}>💧</div>
+                <div style={{ fontWeight:900, fontSize:14, color:'#fff', letterSpacing:'-0.01em' }}>Control Device</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.65)', marginTop:3 }}>Manage valves & relays</div>
               </div>
             </Link>
           )}
           <Link href="/schedules" style={{ textDecoration:'none' }}>
-            <div style={{
-              background:'#fff', borderRadius:16, padding:'14px 16px',
-              border:'1.5px solid #e5e7eb',
-              boxShadow:'0 2px 8px rgba(0,0,0,0.05)',
-            }}>
-              <div style={{ fontSize:22, marginBottom:6 }}>⏰</div>
-              <div style={{ fontWeight:800, fontSize:13, color:'#1f2937' }}>Schedules</div>
-              <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Set watering times</div>
+            <div style={{ background:'#fff', borderRadius:20, padding:'18px 16px', border:'1.5px solid var(--haze)', boxShadow:'var(--el-1)' }}>
+              <div style={{ fontSize:26, marginBottom:8 }}>⏰</div>
+              <div style={{ fontWeight:900, fontSize:14, color:'var(--ink)', letterSpacing:'-0.01em' }}>Schedules</div>
+              <div style={{ fontSize:11, color:'var(--dust)', marginTop:3 }}>Set watering times</div>
             </div>
           </Link>
         </div>

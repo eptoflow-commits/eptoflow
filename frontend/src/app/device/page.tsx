@@ -400,56 +400,91 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
     return () => clearInterval(iv);
   }, [deviceId]);
 
-  const mColor = moisture == null ? '#9ca3af' : moisture < 30 ? '#ef4444' : moisture < 60 ? '#f59e0b' : '#10b981';
-  const tColor = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#3b82f6';
-  const mLabel = moisture == null ? 'No data' : moisture < 30 ? '🔴 Dry — needs water' : moisture < 60 ? '🟡 Moderate' : '🟢 Well watered';
-  const tLabel = temp == null ? 'No data' : temp > 38 ? '🔴 Very hot' : temp > 30 ? '🟡 Warm' : '🟢 Cool';
+  const mColor = moisture == null ? '#9ca3af' : moisture < 30 ? '#ef4444' : moisture < 60 ? '#f59e0b' : '#22C55E';
+  const tColor = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#0EA5E9';
+  const mLabel = moisture == null ? 'No data' : moisture < 30 ? 'Dry — needs water' : moisture < 60 ? 'Moderate' : 'Well watered';
+  const tLabel = temp == null ? 'No data' : temp > 38 ? 'Very hot' : temp > 30 ? 'Warm' : 'Cool';
+
+  /* Mini SVG arc gauge */
+  const ArcMini = ({ value, max, color }: { value:number; max:number; color:string }) => {
+    const r = 28, cx = 36, cy = 36;
+    const circ = Math.PI * r;
+    const pct  = Math.min(1, Math.max(0, value/max));
+    return (
+      <svg width={72} height={44} viewBox="0 0 72 44" style={{ overflow:'visible' }}>
+        <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" strokeLinecap="round"/>
+        <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
+          strokeDasharray={`${pct*circ} ${circ}`} style={{ transition:'stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1)' }}/>
+      </svg>
+    );
+  };
 
   return (
     <div style={{
-      borderRadius: 18, overflow: 'hidden', marginBottom: 16,
-      boxShadow: '0 4px 24px rgba(14,165,233,0.12)',
+      borderRadius:22, overflow:'hidden', marginBottom:16,
+      boxShadow:'0 6px 28px rgba(13,92,61,0.18)',
     }}>
-      {/* Header */}
+      {/* Dark header with inline sensor values */}
       <div style={{
-        background: 'linear-gradient(135deg,#0ea5e9,#0284c7)',
-        padding: '12px 16px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background:'linear-gradient(160deg,#0F1F17 0%,#0D5C3D 100%)',
+        padding:'16px 18px',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
       }}>
-        <div style={{ color: '#fff', fontWeight: 800, fontSize: 13 }}>🌱 Soil Sensor</div>
-        {age && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10 }}>Updated {age}</div>}
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:36, height:36, borderRadius:11, background:'rgba(34,197,94,0.18)', border:'1px solid rgba(34,197,94,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🌱</div>
+          <div>
+            <div style={{ fontSize:13, fontWeight:800, color:'#fff', letterSpacing:'-0.01em' }}>Soil Sensor</div>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,0.45)', marginTop:1 }}>RS485 Modbus · 10s refresh</div>
+          </div>
+        </div>
+        {age && <div style={{ fontSize:10, color:'rgba(255,255,255,0.45)', fontWeight:600 }}>Updated {age}</div>}
       </div>
 
-      {/* Two metric cards side by side */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#f1f5f9' }}>
+      {/* Two metric panels */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', background:'#0F1F17' }}>
 
-        {/* Moisture card */}
-        <div style={{ background: '#fff', padding: '20px 16px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
-            💧 Moisture
+        {/* Moisture */}
+        <div style={{ padding:'18px 16px', borderRight:'1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', alignItems:'center' }}>
+          <ArcMini value={moisture??0} max={100} color={mColor} />
+          <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>💧 Moisture</div>
+          <div style={{ fontSize:38, fontWeight:900, color:mColor, letterSpacing:'-0.04em', lineHeight:1, transition:'color 0.5s' }}>
+            {moisture == null ? '—' : `${(Math.round(moisture*10)/10)}%`}
           </div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: mColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, transition: 'color 0.5s' }}>
-            {moisture == null ? '—' : `${Math.round(moisture * 10) / 10}%`}
+          <div style={{ marginTop:8, fontSize:11, fontWeight:700, color:mColor, background:`${mColor}20`, padding:'3px 10px', borderRadius:20, transition:'all 0.5s' }}>{mLabel}</div>
+          <div style={{ marginTop:10, width:'100%', height:5, background:'rgba(255,255,255,0.08)', borderRadius:99, overflow:'hidden' }}>
+            <div style={{ height:'100%', borderRadius:99, width:`${Math.min(moisture??0,100)}%`, background:`linear-gradient(90deg,${mColor}80,${mColor})`, transition:'width 1.2s ease' }}/>
           </div>
-          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{
-              height: '100%', borderRadius: 99,
-              width: `${Math.min(moisture ?? 0, 100)}%`,
-              background: `linear-gradient(90deg,${mColor}bb,${mColor})`,
-              transition: 'width 1.2s ease, background 0.5s',
-            }}/>
-          </div>
-          <div style={{ fontSize: 11, color: mColor, fontWeight: 600, transition: 'color 0.5s' }}>{mLabel}</div>
         </div>
 
-        {/* Temperature card */}
-        <div style={{ background: '#fff', padding: '20px 16px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
-            🌡️ Temperature
+        {/* Temperature */}
+        <div style={{ padding:'18px 16px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+          <ArcMini value={temp??0} max={50} color={tColor} />
+          <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>🌡️ Temp</div>
+          <div style={{ fontSize:38, fontWeight:900, color:tColor, letterSpacing:'-0.04em', lineHeight:1, transition:'color 0.5s' }}>
+            {temp == null ? '—' : `${(Math.round(temp*10)/10)}°C`}
           </div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: tColor, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 10, transition: 'color 0.5s' }}>
-            {temp == null ? '—' : `${Math.round(temp * 10) / 10}°C`}
+          <div style={{ marginTop:8, fontSize:11, fontWeight:700, color:tColor, background:`${tColor}20`, padding:'3px 10px', borderRadius:20, transition:'all 0.5s' }}>{tLabel}</div>
+          <div style={{ marginTop:10, width:'100%', height:5, background:'rgba(255,255,255,0.08)', borderRadius:99, overflow:'hidden' }}>
+            <div style={{ height:'100%', borderRadius:99, width:`${Math.min(((temp??0)/50)*100,100)}%`, background:`linear-gradient(90deg,${tColor}80,${tColor})`, transition:'width 1.2s ease' }}/>
           </div>
+        </div>
+      </div>
+
+      {/* Upgrade strip (non-premium) */}
+      {!isPremium && (
+        <div style={{ background:'#0A1A10', padding:'10px 18px', display:'flex', alignItems:'center', gap:10, borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ fontSize:16 }}>⚡</span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'#F59E0B' }}>Auto-water by sensor</div>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)' }}>Upgrade to Premium to automate valves by moisture &amp; temp</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HIDDEN BELOW — kept for layout compat ── */}
+      <div style={{ display:'none' }}>
+        <div>{temp == null ? '—' : `${Math.round(temp * 10) / 10}°C`}</div>
+      </div>
           <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
             <div style={{
               height: '100%', borderRadius: 99,
@@ -462,20 +497,6 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
         </div>
       </div>
 
-      {/* Premium automation prompt */}
-      {!isPremium && (
-        <div style={{
-          background: 'linear-gradient(135deg,#fefce8,#fef9c3)',
-          padding: '10px 16px', borderTop: '1px solid #fde68a',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          <span style={{ fontSize: 16 }}>⚡</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>Auto-water by sensor</div>
-            <div style={{ fontSize: 10, color: '#b45309' }}>Upgrade to Premium to automate valves by moisture &amp; temp</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -606,32 +627,45 @@ function DeviceContent({ id }: { id: string }) {
         @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      {/* ── Header ── */}
+      {/* ── Device Header — dark Tesla-style ── */}
       <div style={{
-        background:'linear-gradient(135deg,#064e3b 0%,#065f46 60%,#047857 100%)',
-        borderRadius:20, padding:'18px 20px', marginBottom:20, color:'#fff',
-        boxShadow:'0 8px 28px rgba(6,78,59,0.4)',
+        margin:'0 -16px', marginBottom:0,
+        background:'linear-gradient(160deg,#060F0A 0%,#0F1F17 60%,#0D5C3D 100%)',
+        padding:'20px 24px 22px', color:'#fff', position:'relative', overflow:'hidden',
       }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+        {/* Ambient glow */}
+        <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,197,94,0.12) 0%,transparent 70%)', pointerEvents:'none' }}/>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'relative' }}>
           <div>
-            <div style={{ fontSize:18, fontWeight:800, letterSpacing:'-0.02em' }}>{device.device_name}</div>
-            <div style={{ fontSize:11, opacity:0.6, marginTop:2 }}>{device.device_uid}</div>
-            <div style={{ display:'inline-block', marginTop:8, padding:'3px 10px', borderRadius:20,
-              background:'rgba(255,255,255,0.15)', fontSize:11, fontWeight:600,
-              textTransform:'uppercase', letterSpacing:'0.05em' }}>{plan.plan} plan</div>
+            <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.10em', marginBottom:6 }}>
+              Irrigation Controller
+            </div>
+            <div style={{ fontSize:22, fontWeight:900, letterSpacing:'-0.03em', lineHeight:1 }}>{device.device_name}</div>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)', marginTop:4, fontFamily:'monospace' }}>{device.device_uid}</div>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:5, marginTop:10, padding:'4px 12px', borderRadius:20, background:'rgba(255,255,255,0.10)', border:'1px solid rgba(255,255,255,0.15)', fontSize:10, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+              {plan.plan} plan
+            </div>
           </div>
-          <div style={{
-            display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:20,
-            background: isOnline ? 'rgba(52,211,153,0.2)' : 'rgba(255,255,255,0.1)',
-            border:`1px solid ${isOnline ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.2)'}`,
-          }}>
-            <span style={{ width:8, height:8, borderRadius:'50%', display:'inline-block',
-              background: isOnline ? '#34d399' : '#6b7280',
-              boxShadow: isOnline ? '0 0 8px #34d399' : 'none',
-              animation: isOnline ? 'pulseRing 2s infinite' : 'none' }}/>
-            <span style={{ fontSize:12, fontWeight:700 }}>{isOnline ? 'Online' : 'Offline'}</span>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+            <div style={{
+              display:'flex', alignItems:'center', gap:6, padding:'6px 13px', borderRadius:20,
+              background: isOnline ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.08)',
+              border:`1px solid ${isOnline ? 'rgba(34,197,94,0.35)' : 'rgba(255,255,255,0.12)'}`,
+            }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', display:'inline-block',
+                background: isOnline ? '#22C55E' : '#6b7280',
+                boxShadow: isOnline ? '0 0 8px #22C55E' : 'none',
+                animation: isOnline ? 'pulseRing 2s infinite' : 'none' }}/>
+              <span style={{ fontSize:12, fontWeight:700, color: isOnline ? '#22C55E' : 'rgba(255,255,255,0.5)' }}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
           </div>
         </div>
+        {/* Wave bottom */}
+        <svg viewBox="0 0 400 20" style={{ display:'block', width:'100%', height:20, marginTop:16, marginLeft:-24, marginRight:-24, width:'calc(100% + 48px)' }} preserveAspectRatio="none">
+          <path d="M0 20 L0 10 Q100 0 200 10 Q300 20 400 10 L400 20 Z" fill="var(--fog)"/>
+        </svg>
       </div>
 
       {/* ── Live Sensor Panel ── */}
