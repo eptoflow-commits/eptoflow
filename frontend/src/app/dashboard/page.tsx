@@ -171,76 +171,79 @@ function WateringAdviceStrip({ weather }: { weather: Weather }) {
   );
 }
 
-/* ─── AQI card ───────────────────────────────────────────────────────── */
+/* ─── AQI card — compact single-row strip ───────────────────────────── */
 function AqiCard({ weather }: { weather: Weather }) {
   if (weather.aqi === null) return null;
-  const a = aqiLabel(weather.aqi);
+  const a   = aqiLabel(weather.aqi);
   const pct = Math.min(100, (weather.aqi / 300) * 100);
+  const gardenTip =
+    weather.aqi <= 50  ? 'Great for gardening' :
+    weather.aqi <= 100 ? 'Fine to garden today' :
+    weather.aqi <= 150 ? 'Rinse plant leaves' :
+    'Limit outdoor time';
+
   return (
-    <div className="fade-up" style={{ marginBottom: 16, animationDelay: '0.08s' }}>
+    <div style={{ marginBottom: 14 }}>
       <div style={{
-        background: '#fff', borderRadius: 20, padding: '16px 18px',
-        border: `2px solid ${a.color}25`,
-        boxShadow: `0 4px 20px ${a.color}15`,
+        background: '#fff', borderRadius: 18,
+        border: `1.5px solid ${a.color}20`,
+        boxShadow: `0 2px 12px ${a.color}12`,
+        overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 14, flexShrink: 0,
-              background: a.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
-            }}>{a.emoji}</div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Air Quality Index</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: a.color, letterSpacing: '-0.02em' }}>{a.label}</div>
+        {/* Main row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+          {/* Emoji badge */}
+          <div style={{
+            width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+            background: a.bg, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 20,
+          }}>{a.emoji}</div>
+
+          {/* Label + bar */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: a.color }}>{a.label}</span>
+                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginLeft: 6 }}>Air Quality</span>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 900, color: a.color, letterSpacing: '-0.03em' }}>
+                {Math.round(weather.aqi)}
+                <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.6, marginLeft: 2 }}>AQI</span>
+              </span>
+            </div>
+            {/* Thin progress bar */}
+            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 99, width: `${pct}%`,
+                background: 'linear-gradient(90deg,#22c55e,#f59e0b,#ef4444)',
+                transition: 'width 1.2s ease',
+              }}/>
             </div>
           </div>
-          <div style={{ textAlign: 'right', padding: '8px 14px', borderRadius: 12, background: a.bg }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: a.color, lineHeight: 1, letterSpacing: '-0.04em' }}>{Math.round(weather.aqi)}</div>
-            <div style={{ fontSize: 10, color: a.color, fontWeight: 700, opacity: 0.7 }}>US AQI</div>
-          </div>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', borderRadius: 99, width: `${pct}%`,
-              background: 'linear-gradient(90deg,#059669,#d97706,#dc2626)',
-              transition: 'width 1s ease',
-            }}/>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-            {['Good', 'Moderate', 'Unhealthy', 'Hazardous'].map(l => (
-              <span key={l} style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{l}</span>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+
+        {/* Chips row — PM data + tip */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+          padding: '0 16px 12px',
+        }}>
           {weather.pm25 !== null && (
-            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 12px' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#1f2937', letterSpacing: '-0.02em' }}>
-                {Math.round(weather.pm25)} <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>µg/m³</span>
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>PM2.5 — Fine particles</div>
-              <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Affects lungs & plants</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#475569' }}>PM2.5</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#1e293b' }}>{Math.round(weather.pm25)}</span>
+              <span style={{ fontSize: 9, color: '#94a3b8' }}>µg/m³</span>
             </div>
           )}
           {weather.pm10 !== null && (
-            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 12px' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#1f2937', letterSpacing: '-0.02em' }}>
-                {Math.round(weather.pm10)} <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>µg/m³</span>
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>PM10 — Dust particles</div>
-              <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Settles on leaves</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#475569' }}>PM10</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#1e293b' }}>{Math.round(weather.pm10)}</span>
+              <span style={{ fontSize: 9, color: '#94a3b8' }}>µg/m³</span>
             </div>
           )}
-        </div>
-        <div style={{ marginTop: 10, padding: '9px 12px', borderRadius: 12, background: a.bg, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🌿</span>
-          <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>
-            {weather.aqi <= 50   && 'Great air — perfect day to tend your garden'}
-            {weather.aqi > 50   && weather.aqi <= 100 && 'Acceptable air — gardening is fine today'}
-            {weather.aqi > 100  && weather.aqi <= 150 && 'Sensitive plants may be affected — rinse leaves'}
-            {weather.aqi > 150  && weather.aqi <= 200 && 'Poor air — wipe plant leaves, limit outdoor time'}
-            {weather.aqi > 200  && 'Very poor air — keep plants indoors if possible'}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: a.bg }}>
+            <span style={{ fontSize: 11 }}>🌿</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: a.color }}>{gardenTip}</span>
           </div>
         </div>
       </div>
@@ -480,54 +483,98 @@ export default function DashboardPage() {
 
         {devices.length === 0 ? (
           <div style={{ borderRadius:20, padding:'36px 24px', textAlign:'center', background:'#fff', border:'1.5px dashed var(--haze)' }}>
-            <div style={{ fontSize:44, marginBottom:12 }}>📡</div>
+            {/* Branded device icon */}
+            <div style={{ display:'flex', justifyContent:'center', marginBottom:14 }}>
+              <div style={{ width:56, height:56, borderRadius:18, background:'var(--fog)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--dust)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1"/><path d="M8 6h8M8 10h5"/>
+                </svg>
+              </div>
+            </div>
             <div style={{ fontSize:15, fontWeight:800, color:'var(--ink)', marginBottom:5 }}>No devices yet</div>
             <div style={{ fontSize:13, color:'var(--dust)' }}>Contact your admin to add a device</div>
           </div>
         ) : (
           <>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {devices.map(d => (
-                <Link key={d.id} href={`/device?id=${d.id}`} style={{ textDecoration:'none' }}>
-                  <div className="device-row" style={{
-                    background:'#fff', borderRadius:18, padding:'14px 16px',
-                    border:`1.5px solid ${d.status==='online' ? 'var(--leaf)' : 'var(--haze)'}`,
-                    boxShadow: d.status==='online' ? '0 4px 16px rgba(13,92,61,0.10)' : 'var(--el-1)',
-                    display:'flex', alignItems:'center', gap:13,
-                  }}>
-                    <div style={{
-                      width:48, height:48, borderRadius:16, flexShrink:0,
-                      background: d.status==='online' ? 'linear-gradient(135deg,#0D5C3D,#15803D)' : '#f3f4f6',
-                      display:'flex', alignItems:'center', justifyContent:'center', fontSize:22,
-                      boxShadow: d.status==='online' ? '0 4px 14px rgba(13,92,61,0.35)' : 'none',
-                    }}>{d.status==='online' ? '💧' : '😴'}</div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:800, fontSize:15, color:'var(--ink)', letterSpacing:'-0.02em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.device_name}</div>
-                      <div style={{ fontSize:11, color:'var(--dust)', fontFamily:'monospace', marginTop:1 }}>{d.device_uid}</div>
+              {devices.map(d => {
+                const online = d.status === 'online';
+                return (
+                  <Link key={d.id} href={`/device?id=${d.id}`} style={{ textDecoration:'none' }}>
+                    <div className="device-row" style={{
+                      background:'#fff', borderRadius:18, padding:'14px 16px',
+                      border:`1.5px solid ${online ? 'var(--leaf)' : 'var(--haze)'}`,
+                      boxShadow: online ? '0 4px 16px rgba(13,92,61,0.10)' : 'var(--el-1)',
+                      display:'flex', alignItems:'center', gap:13,
+                      transition:'all 0.18s ease',
+                    }}>
+                      {/* Branded SVG icon — water drop when online, device icon when offline */}
+                      <div style={{
+                        width:48, height:48, borderRadius:16, flexShrink:0,
+                        background: online ? 'linear-gradient(135deg,#0D5C3D,#15803D)' : '#f1f5f9',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        boxShadow: online ? '0 4px 14px rgba(13,92,61,0.35)' : 'none',
+                        transition:'all 0.25s ease',
+                      }}>
+                        {online ? (
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+                          </svg>
+                        ) : (
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--dust)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1"/><path d="M8 6h8M8 10h5"/>
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Device info — name + UID only, no zone names */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontWeight:800, fontSize:15, color:'var(--ink)', letterSpacing:'-0.02em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {d.device_name}
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--dust)', fontFamily:'monospace', marginTop:2, letterSpacing:'0.02em' }}>
+                          {d.device_uid}
+                        </div>
+                      </div>
+
+                      {/* Status pill */}
+                      <div style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:20, background: online ? 'var(--sprout)' : '#f3f4f6', flexShrink:0 }}>
+                        <div style={{
+                          width:7, height:7, borderRadius:'50%',
+                          background: online ? '#22C55E' : '#9ca3af',
+                          boxShadow: online ? '0 0 0 3px rgba(34,197,94,0.25)' : 'none',
+                          animation: online ? 'pulse 2s infinite' : 'none',
+                        }}/>
+                        <span style={{ fontSize:11, fontWeight:700, color: online ? 'var(--forest)' : '#9ca3af', textTransform:'capitalize' }}>
+                          {d.status}
+                        </span>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--haze)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+                        <path d="M9 18l6-6-6-6"/>
+                      </svg>
                     </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 12px', borderRadius:20, background: d.status==='online' ? 'var(--sprout)' : '#f3f4f6' }}>
-                      <div style={{ width:7, height:7, borderRadius:'50%', background: d.status==='online' ? '#22C55E' : '#9ca3af', boxShadow: d.status==='online' ? '0 0 0 3px rgba(34,197,94,0.25)' : 'none', animation: d.status==='online' ? 'pulse 2s infinite' : 'none' }}/>
-                      <span style={{ fontSize:11, fontWeight:700, color: d.status==='online' ? 'var(--forest)' : '#9ca3af', textTransform:'capitalize' }}>{d.status}</span>
-                    </div>
-                    <div style={{ color:'var(--haze)', fontSize:20, fontWeight:300 }}>›</div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
 
-            {/* Premium voice + zone controls */}
+            {/* Premium: Voice control only — zone naming moved to device settings */}
             {sub?.plan_name === 'premium' && devices.length > 0 && (
-              <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:10 }}>
-                {devices.map(d => (
-                  <div key={d.id} style={{ background:'#fff', borderRadius:18, padding:'16px', border:'1.5px solid #ede9fe', boxShadow:'0 2px 8px rgba(124,58,237,0.07)' }}>
-                    <div style={{ fontWeight:700, fontSize:12, color:'#7c3aed', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                      <span>⚡</span><span>{d.device_name} — Voice &amp; Zone Control</span>
-                      <span style={{ marginLeft:'auto', fontSize:9, background:'#ede9fe', color:'#7c3aed', padding:'2px 8px', borderRadius:20, fontWeight:700, letterSpacing:'0.05em' }}>PREMIUM</span>
+              <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:8 }}>
+                {devices.filter(d => d.status === 'online').map(d => (
+                  <div key={d.id} style={{
+                    background:'#fff', borderRadius:16, padding:'12px 16px',
+                    border:'1.5px solid #ede9fe', boxShadow:'0 2px 8px rgba(124,58,237,0.07)',
+                    display:'flex', alignItems:'center', gap:12,
+                  }}>
+                    <div style={{ width:34, height:34, borderRadius:11, background:'linear-gradient(135deg,#7c3aed,#6d28d9)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
                     </div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                      <ZoneNameEditor deviceId={d.id} />
-                      <VoiceButton deviceId={d.id} disabled={d.status !== 'online'} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#7c3aed' }}>Voice Control</div>
+                      <div style={{ fontSize:10, color:'#9ca3af', marginTop:1 }}>{d.device_name}</div>
                     </div>
+                    <VoiceButton deviceId={d.id} disabled={d.status !== 'online'} />
                   </div>
                 ))}
               </div>
@@ -541,18 +588,41 @@ export default function DashboardPage() {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           {devices[0] && (
             <Link href={`/device?id=${devices[0].id}`} style={{ textDecoration:'none' }}>
-              <div style={{ background:'linear-gradient(135deg,#0D5C3D,#15803D)', borderRadius:20, padding:'18px 16px', boxShadow:'0 6px 20px rgba(13,92,61,0.35)' }}>
-                <div style={{ fontSize:26, marginBottom:8 }}>💧</div>
+              <div style={{
+                background:'linear-gradient(135deg,#0D5C3D 0%,#15803D 100%)',
+                borderRadius:20, padding:'18px 16px',
+                boxShadow:'0 4px 0 #052E1C, 0 8px 24px rgba(13,92,61,0.35)',
+                transition:'transform 0.15s, box-shadow 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform='translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow='0 6px 0 #052E1C, 0 14px 32px rgba(13,92,61,0.45)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform=''; (e.currentTarget as HTMLElement).style.boxShadow='0 4px 0 #052E1C, 0 8px 24px rgba(13,92,61,0.35)'; }}
+              >
+                <div style={{ width:36, height:36, borderRadius:12, background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+                  </svg>
+                </div>
                 <div style={{ fontWeight:900, fontSize:14, color:'#fff', letterSpacing:'-0.01em' }}>Control Device</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.65)', marginTop:3 }}>Manage valves & relays</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.65)', marginTop:3 }}>Manage irrigation zones</div>
               </div>
             </Link>
           )}
           <Link href="/schedules" style={{ textDecoration:'none' }}>
-            <div style={{ background:'#fff', borderRadius:20, padding:'18px 16px', border:'1.5px solid var(--haze)', boxShadow:'var(--el-1)' }}>
-              <div style={{ fontSize:26, marginBottom:8 }}>⏰</div>
+            <div style={{
+              background:'#fff', borderRadius:20, padding:'18px 16px',
+              border:'1.5px solid var(--haze)', boxShadow:'var(--el-1)',
+              transition:'transform 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform='translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow='var(--el-3)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform=''; (e.currentTarget as HTMLElement).style.boxShadow='var(--el-1)'; }}
+            >
+              <div style={{ width:36, height:36, borderRadius:12, background:'var(--fog)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
+                </svg>
+              </div>
               <div style={{ fontWeight:900, fontSize:14, color:'var(--ink)', letterSpacing:'-0.01em' }}>Schedules</div>
-              <div style={{ fontSize:11, color:'var(--dust)', marginTop:3 }}>Set watering times</div>
+              <div style={{ fontSize:11, color:'var(--dust)', marginTop:3 }}>Automate watering times</div>
             </div>
           </Link>
         </div>

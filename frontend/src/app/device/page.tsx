@@ -123,39 +123,99 @@ const DURATION_PRESETS = [
 ];
 const DAYS_SHORT = ['M','T','W','T','F','S','S'];
 
-const OUTPUT_META: Record<string, { icon: string; color: string; glow: string; bg: string; label: string }> = {
-  valve1: { icon: '🪴', color: '#059669', glow: 'rgba(5,150,105,0.35)', bg: '#ecfdf5', label: 'Daily Watering' },
-  valve2: { icon: '🌿', color: '#0891b2', glow: 'rgba(8,145,178,0.35)', bg: '#ecfeff', label: 'Occasional Watering' },
-  valve3: { icon: '🌊', color: '#7c3aed', glow: 'rgba(124,58,237,0.35)', bg: '#f5f3ff', label: 'Misting' },
-  relay1: { icon: '⚡', color: '#d97706', glow: 'rgba(217,119,6,0.35)',  bg: '#fffbeb', label: 'Motor / Light' },
-  relay6: { icon: '💊', color: '#e11d48', glow: 'rgba(225,29,72,0.35)',  bg: '#fff1f2', label: 'MediSpray' },
-  relay7: { icon: '💧', color: '#0369a1', glow: 'rgba(3,105,161,0.35)',  bg: '#eff6ff', label: 'Extra Zone 1' },
-  relay8: { icon: '💧', color: '#0369a1', glow: 'rgba(3,105,161,0.35)',  bg: '#eff6ff', label: 'Extra Zone 2' },
+/* ── Branded SVG zone icons ─────────────────────────────────────── */
+function ZoneIcon({ type, color, size = 24 }: { type: string; color: string; size?: number }) {
+  const s = size;
+  if (type === 'valve1') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill={color}>
+      <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+    </svg>
+  );
+  if (type === 'valve2') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2z"/>
+      <circle cx="12" cy="9" r="2.5"/>
+    </svg>
+  );
+  if (type === 'valve3') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v6M8 6l4 4 4-4M5 14c0 3.87 3.13 7 7 7s7-3.13 7-7"/>
+      <path d="M9 17c0 1.66 1.34 3 3 3s3-1.34 3-3"/>
+    </svg>
+  );
+  if (type === 'relay1') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  );
+  if (type === 'relay6') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2z"/>
+      <path d="M9.5 9.5s.5-2 2.5-2 2.5 2 2.5 2"/>
+    </svg>
+  );
+  // relay7, relay8 — Extra zones
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill={color} opacity="0.9">
+      <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+    </svg>
+  );
+}
+
+const OUTPUT_META: Record<string, { color: string; glow: string; bg: string; label: string }> = {
+  valve1: { color: '#0D5C3D', glow: 'rgba(13,92,61,0.30)',   bg: '#f0fdf4', label: 'Zone 1' },
+  valve2: { color: '#0891b2', glow: 'rgba(8,145,178,0.30)',  bg: '#ecfeff', label: 'Zone 2' },
+  valve3: { color: '#7c3aed', glow: 'rgba(124,58,237,0.30)', bg: '#f5f3ff', label: 'Zone 3' },
+  relay1: { color: '#d97706', glow: 'rgba(217,119,6,0.30)',  bg: '#fffbeb', label: 'Motor / Light' },
+  relay6: { color: '#e11d48', glow: 'rgba(225,29,72,0.30)',  bg: '#fff1f2', label: 'MediSpray' },
+  relay7: { color: '#0369a1', glow: 'rgba(3,105,161,0.30)',  bg: '#eff6ff', label: 'Zone 4' },
+  relay8: { color: '#0369a1', glow: 'rgba(3,105,161,0.30)',  bg: '#eff6ff', label: 'Zone 5' },
 };
 
-/* ── Toggle switch ───────────────────────────────────────────────── */
+/* ── Premium toggle switch ───────────────────────────────────────── */
 function Toggle({ on, loading, disabled, color, onToggle }: {
   on: boolean; loading?: boolean; disabled?: boolean; color: string; onToggle: () => void;
 }) {
   return (
-    <button onClick={onToggle} disabled={disabled || loading} aria-pressed={on} style={{
-      position:'relative', width:54, height:30, borderRadius:15, border:'none',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      background: on ? color : '#d1d5db',
-      boxShadow: on ? `0 0 14px ${color}88, inset 0 1px 2px rgba(0,0,0,0.1)` : 'inset 0 2px 4px rgba(0,0,0,0.15)',
-      transition:'background 0.25s, box-shadow 0.25s',
-      opacity: disabled ? 0.4 : 1, flexShrink:0,
-    }}>
+    <button
+      onClick={onToggle}
+      disabled={disabled || loading}
+      aria-pressed={on}
+      style={{
+        position:'relative', width:56, height:32, borderRadius:16,
+        border: on ? `1.5px solid ${color}60` : '1.5px solid #e2e8f0',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        background: on
+          ? `linear-gradient(135deg, ${color}, ${color}dd)`
+          : '#f1f5f9',
+        boxShadow: on
+          ? `0 0 0 3px ${color}25, 0 4px 12px ${color}40`
+          : '0 1px 3px rgba(0,0,0,0.10)',
+        transition:'all 0.25s cubic-bezier(0.34,1,0.64,1)',
+        opacity: disabled ? 0.38 : 1,
+        flexShrink: 0,
+        outline: 'none',
+      }}
+    >
+      {/* Thumb */}
       <span style={{
         position:'absolute', top:3, left: on ? 27 : 3,
         width:24, height:24, borderRadius:'50%',
         background: loading ? 'transparent' : '#fff',
-        border: loading ? '2.5px solid rgba(255,255,255,0.7)' : 'none',
+        border: loading ? `2.5px solid ${on ? 'rgba(255,255,255,0.7)' : '#94a3b8'}` : 'none',
         borderTopColor: loading ? 'transparent' : undefined,
-        boxShadow: loading ? 'none' : '0 2px 6px rgba(0,0,0,0.22)',
-        transition:'left 0.25s cubic-bezier(.34,1.4,.64,1)',
-        animation: loading ? 'spin 0.6s linear infinite' : 'none',
-      }}/>
+        boxShadow: loading ? 'none' : '0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)',
+        transition:'left 0.28s cubic-bezier(0.34,1.4,0.64,1)',
+        animation: loading ? 'spin 0.65s linear infinite' : 'none',
+        display:'flex', alignItems:'center', justifyContent:'center',
+      }}>
+        {/* Tiny icon inside thumb when ON */}
+        {on && !loading && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill={color} style={{ opacity:0.6 }}>
+            <path d="M12 2C8.5 2 5.5 5 5.5 9c0 5.25 6.5 13 6.5 13s6.5-7.75 6.5-13C18.5 5 15.5 2 12 2z"/>
+          </svg>
+        )}
+      </span>
     </button>
   );
 }
@@ -783,28 +843,26 @@ function DeviceContent({ id }: { id: string }) {
                 {/* Main row */}
                 <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
 
-                  {/* Icon — large, vivid when ON */}
+                  {/* Branded SVG icon — vivid when ON, muted when OFF */}
                   <div style={{
-                    width: 58, height: 58, borderRadius: 18, flexShrink: 0,
+                    width: 56, height: 56, borderRadius: 18, flexShrink: 0,
                     background: on
                       ? `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`
-                      : '#f3f4f6',
+                      : '#f1f5f9',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 28,
-                    boxShadow: on ? `0 6px 20px ${meta.glow}, inset 0 1px 0 rgba(255,255,255,0.3)` : 'none',
-                    filter: !on && !busy ? 'grayscale(0.6) opacity(0.6)' : 'none',
-                    transition: 'all 0.35s ease',
+                    boxShadow: on ? `0 6px 20px ${meta.glow}, inset 0 1px 0 rgba(255,255,255,0.25)` : 'none',
+                    transition: 'all 0.30s cubic-bezier(0.34,1.2,0.64,1)',
                     position: 'relative',
                   }}>
-                    {meta.icon}
-                    {/* Water drop drip when ON */}
+                    <ZoneIcon type={key} color={on ? 'white' : meta.color} size={26} />
+                    {/* Animated water drip indicator when running */}
                     {on && !busy && (
-                      <span style={{
-                        position: 'absolute', bottom: -2, left: '50%',
-                        transform: 'translateX(-50%)',
-                        fontSize: 10, animation: 'waterDripIcon 1.8s ease-in infinite',
-                        opacity: 0.8,
-                      }}>💧</span>
+                      <div style={{
+                        position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+                        width: 6, height: 6, borderRadius: '50%', background: meta.color,
+                        animation: 'waterDripIcon 1.8s ease-in infinite',
+                        boxShadow: `0 0 6px ${meta.color}`,
+                      }}/>
                     )}
                   </div>
 
@@ -842,10 +900,8 @@ function DeviceContent({ id }: { id: string }) {
                   <Toggle on={on} loading={busy} disabled={!isOnline} color={meta.color} onToggle={() => toggle(key)} />
                 </div>
 
-                {/* Timer preset row */}
-                <div style={{
-                  display: 'flex', gap: 6, padding: '0 16px 16px',
-                }}>
+                {/* Timer preset pills */}
+                <div style={{ display:'flex', gap:5, padding:'0 16px 16px' }}>
                   {DURATION_PRESETS.map(p => (
                     <button key={p.s}
                       disabled={!isOnline || busy}
@@ -854,14 +910,28 @@ function DeviceContent({ id }: { id: string }) {
                         send('water_for', { target: key, duration: p.s });
                       }}
                       style={{
-                        flex: 1, padding: '9px 0', borderRadius: 12, border: 'none',
-                        background: on ? `${meta.color}28` : 'var(--fog)',
+                        flex:1, padding:'8px 0', borderRadius:20,
+                        border: `1px solid ${on ? `${meta.color}40` : 'var(--haze)'}`,
+                        background: on ? `${meta.color}14` : 'var(--fog)',
                         color: on ? meta.color : 'var(--dust)',
-                        fontSize: 12, fontWeight: 800,
+                        fontSize:11, fontWeight:800,
                         cursor: isOnline && !busy ? 'pointer' : 'not-allowed',
-                        opacity: isOnline ? 1 : 0.35,
-                        transition: 'all 0.15s',
-                        letterSpacing: '-0.01em',
+                        opacity: isOnline ? 1 : 0.3,
+                        transition:'all 0.15s ease',
+                        letterSpacing:'-0.01em',
+                        fontFamily:'inherit',
+                      }}
+                      onMouseEnter={e => {
+                        if (isOnline && !busy) {
+                          (e.currentTarget as HTMLElement).style.background = `${meta.color}28`;
+                          (e.currentTarget as HTMLElement).style.borderColor = `${meta.color}60`;
+                          (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = on ? `${meta.color}14` : 'var(--fog)';
+                        (e.currentTarget as HTMLElement).style.borderColor = on ? `${meta.color}40` : 'var(--haze)';
+                        (e.currentTarget as HTMLElement).style.transform = '';
                       }}
                     >{p.l}</button>
                   ))}
