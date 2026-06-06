@@ -723,7 +723,7 @@ function DeviceContent({ id }: { id: string }) {
           ] as const).map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               style={{
-                padding:'11px 6px', borderRadius:16, border:'none', cursor:'pointer',
+                padding:'11px 6px', borderRadius:16, cursor:'pointer',
                 background: activeTab === t.key ? t.activeBg : 'transparent',
                 color: activeTab === t.key ? t.activeColor : 'rgba(255,255,255,0.35)',
                 fontWeight:800, fontSize:11,
