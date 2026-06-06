@@ -259,7 +259,7 @@ export default function AutomationRuleBuilder({ deviceId, availableValves, zoneN
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
                           {[{v:300,l:'5 min'},{v:600,l:'10 min'},{v:900,l:'15 min'},{v:1800,l:'30 min'},{v:3600,l:'1 hr'},{v:7200,l:'2 hr'}].map(p => (
                             <button key={p.v} onClick={() => updateField(key,'max_duration_s',p.v)} style={{
-                              padding:'8px 0', borderRadius:10, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+                              padding:'8px 0', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:700,
                               background: r.max_duration_s===p.v ? meta.color : '#fff',
                               color: r.max_duration_s===p.v ? '#fff' : '#64748b',
                               border: `1.5px solid ${r.max_duration_s===p.v ? meta.color : '#e2e8f0'}`,
