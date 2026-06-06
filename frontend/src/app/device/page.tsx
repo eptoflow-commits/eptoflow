@@ -375,6 +375,23 @@ function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, on
   );
 }
 
+/* ── Arc gauge — module-level so React sees a stable component reference ── */
+function ArcMini({ value, max, color }: { value: number; max: number; color: string }) {
+  const r = 28, cx = 36, cy = 36;
+  const circ = Math.PI * r;
+  const pct  = Math.min(1, Math.max(0, value / max));
+  return (
+    <svg width={72} height={44} viewBox="0 0 72 44" style={{ overflow: 'visible' }}>
+      <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`}
+        fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" strokeLinecap="round"/>
+      <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`}
+        fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
+        strokeDasharray={`${pct * circ} ${circ}`}
+        style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1)' }}/>
+    </svg>
+  );
+}
+
 /* ── Live Sensor Panel ───────────────────────────────────────────── */
 function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium: boolean }) {
   const [moisture, setMoisture] = useState<number | null>(null);
@@ -404,20 +421,6 @@ function LiveSensorPanel({ deviceId, isPremium }: { deviceId: string; isPremium:
   const tColor = temp == null ? '#9ca3af' : temp > 38 ? '#ef4444' : temp > 30 ? '#f59e0b' : '#0EA5E9';
   const mLabel = moisture == null ? 'No data' : moisture < 30 ? 'Dry — needs water' : moisture < 60 ? 'Moderate' : 'Well watered';
   const tLabel = temp == null ? 'No data' : temp > 38 ? 'Very hot' : temp > 30 ? 'Warm' : 'Cool';
-
-  /* Mini SVG arc gauge */
-  const ArcMini = ({ value, max, color }: { value:number; max:number; color:string }) => {
-    const r = 28, cx = 36, cy = 36;
-    const circ = Math.PI * r;
-    const pct  = Math.min(1, Math.max(0, value/max));
-    return (
-      <svg width={72} height={44} viewBox="0 0 72 44" style={{ overflow:'visible' }}>
-        <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" strokeLinecap="round"/>
-        <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
-          strokeDasharray={`${pct*circ} ${circ}`} style={{ transition:'stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1)' }}/>
-      </svg>
-    );
-  };
 
   return (
     <div style={{
