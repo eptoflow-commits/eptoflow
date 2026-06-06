@@ -127,8 +127,20 @@ export default function LoginPage() {
       {splashing && (
         <div className="splash-overlay">
           <div className="splash-ring" />
-          <div className="splash-check">✅</div>
-          <div className="splash-text">Welcome to Eptoflow</div>
+          <div className="splash-ring" style={{ animationDelay:'0.12s', width:240, height:240 }}/>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative', zIndex:1 }}>
+            <div style={{
+              width:80, height:80, borderRadius:24,
+              background:'rgba(255,255,255,0.22)', backdropFilter:'blur(12px)',
+              border:'2px solid rgba(255,255,255,0.4)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:40,
+              animation:'checkPop 0.5s 0.25s cubic-bezier(0.34,1.56,0.64,1) both',
+            }}>🌱</div>
+            <div className="splash-text">Welcome to Eptoflow</div>
+            <div style={{ fontSize:13, color:'rgba(255,255,255,0.7)', fontWeight:600, animation:'checkPop 0.5s 0.5s ease both' }}>
+              Smart Irrigation · Starting…
+            </div>
+          </div>
         </div>
       )}
 

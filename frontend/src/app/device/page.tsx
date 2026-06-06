@@ -539,12 +539,24 @@ function DeviceContent({ id }: { id: string }) {
     return () => clearInterval(iv);
   }, []);
 
-  if (err) return <AppShell><div className="card text-red-600 text-sm">⚠️ {err}</div></AppShell>;
+  if (err) return (
+    <AppShell>
+      <div style={{ background:'#fef2f2', borderRadius:20, padding:'20px 18px', border:'1.5px solid #fecaca', display:'flex', alignItems:'center', gap:12 }}>
+        <span style={{ fontSize:24 }}>⚠️</span>
+        <div>
+          <div style={{ fontWeight:800, color:'#dc2626', fontSize:14 }}>Failed to load device</div>
+          <div style={{ fontSize:12, color:'#f87171', marginTop:2 }}>{err}</div>
+        </div>
+      </div>
+    </AppShell>
+  );
   if (!data) return (
     <AppShell>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'64px 0' }}>
-        <div style={{ color:'#9ca3af', fontSize:14 }}>Loading device…</div>
-      </div>
+      <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}.sk{background:linear-gradient(105deg,#e2e8f0 35%,#f8fafc 50%,#e2e8f0 65%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;border-radius:16px}`}</style>
+      <div className="sk" style={{ height:110, marginBottom:16, borderRadius:24 }}/>
+      <div className="sk" style={{ height:130, marginBottom:16, borderRadius:22 }}/>
+      <div className="sk" style={{ height:52, marginBottom:16, borderRadius:16 }}/>
+      {[1,2,3].map(i=><div key={i} className="sk" style={{ height:90, marginBottom:10, borderRadius:20 }}/>)}
     </AppShell>
   );
 
@@ -630,27 +642,30 @@ function DeviceContent({ id }: { id: string }) {
           ════════════════════════════════════════════════════════ */}
 
       {/* Tab bar */}
-      <div style={{ marginBottom:14 }}>
+      <div style={{ marginBottom:16 }}>
         <div style={{
-          display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:5,
-          background:'#f1f5f9', borderRadius:16, padding:4,
+          display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4,
+          background:'#f1f5f9', borderRadius:18, padding:4,
+          boxShadow:'inset 0 1px 3px rgba(0,0,0,0.07)',
         }}>
           {([
-            { key:'manual',   label:'🖐️ Manual',   desc:'On / Off' },
-            { key:'schedule', label:'⏰ Schedule',  desc:'Timer' },
-            { key:'auto',     label:'🤖 Sensor Auto', desc:'Threshold' },
+            { key:'manual',   label:'🖐️ Manual',      desc:'On / Off',   activeColor:'#059669' },
+            { key:'schedule', label:'⏰ Schedule',     desc:'Timer',      activeColor:'#0284c7' },
+            { key:'auto',     label:'🤖 Sensor Auto',  desc:'Threshold',  activeColor:'#7c3aed' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               style={{
-                padding:'10px 0', borderRadius:12, border:'none', cursor:'pointer',
+                padding:'10px 4px', borderRadius:14, border:'none', cursor:'pointer',
                 background: activeTab === t.key ? '#fff' : 'transparent',
-                color: activeTab === t.key ? '#1f2937' : '#64748b',
-                fontWeight:700, fontSize:12,
-                boxShadow: activeTab === t.key ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-                transition:'all 0.15s',
+                color: activeTab === t.key ? t.activeColor : '#94a3b8',
+                fontWeight:800, fontSize:11,
+                boxShadow: activeTab === t.key ? '0 2px 10px rgba(0,0,0,0.10)' : 'none',
+                transition:'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+                transform: activeTab === t.key ? 'scale(1.02)' : 'scale(1)',
               }}>
-              <div>{t.label}</div>
-              <div style={{ fontSize:9, fontWeight:500, opacity:0.6, marginTop:1 }}>{t.desc}</div>
+              <div style={{ fontSize:14, marginBottom:2 }}>{t.label.split(' ')[0]}</div>
+              <div style={{ fontSize:10, fontWeight:700 }}>{t.label.split(' ').slice(1).join(' ')}</div>
+              <div style={{ fontSize:9, fontWeight:500, opacity:0.55, marginTop:1 }}>{t.desc}</div>
             </button>
           ))}
         </div>
@@ -718,13 +733,15 @@ function DeviceContent({ id }: { id: string }) {
           {/* Stop All */}
           <button onClick={()=>{ setOptimistic({}); send('stop_all'); }}
             disabled={!isOnline} style={{
-              width:'100%', padding:'14px 0', borderRadius:14, border:'none',
+              width:'100%', padding:'16px 0', borderRadius:16, border:'none',
               background: isOnline ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : '#e5e7eb',
-              color: isOnline ? '#fff' : '#9ca3af', fontSize:14, fontWeight:800,
+              color: isOnline ? '#fff' : '#9ca3af', fontSize:15, fontWeight:900,
               cursor: isOnline ? 'pointer' : 'not-allowed',
-              boxShadow: isOnline ? '0 4px 18px rgba(220,38,38,0.35)' : 'none',
-              transition:'all 0.2s',
-            }}>■ Stop Everything</button>
+              boxShadow: isOnline ? '0 4px 0 #991b1b, 0 8px 24px rgba(220,38,38,0.35)' : 'none',
+              transition:'all 0.2s', letterSpacing:'-0.01em',
+            }}>
+            ■ Stop Everything
+          </button>
 
           {/* Voice */}
           {plan.hasVoice && (
