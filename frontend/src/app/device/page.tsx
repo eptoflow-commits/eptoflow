@@ -978,11 +978,12 @@ function DeviceContent({ id }: { id: string }) {
           </div>
           {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map(key => {
             const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
+            const on   = isOn(key);
             return (
               <div key={key} style={{
                 borderRadius:18, overflow:'hidden',
-                border:`1.5px solid ${meta.color}30`,
-                boxShadow:`0 2px 12px ${meta.glow}`,
+                border:`1.5px solid ${on ? meta.color+'60' : meta.color+'30'}`,
+                boxShadow: on ? `0 4px 18px ${meta.glow}` : `0 2px 12px ${meta.glow}`,
                 background:'#fff',
               }}>
                 {/* Zone header */}
@@ -991,11 +992,28 @@ function DeviceContent({ id }: { id: string }) {
                   padding:'12px 16px', display:'flex', alignItems:'center', gap:10,
                 }}>
                   <ZoneIcon type={key} color="white" size={22} />
-                  <div>
+                  <div style={{ flex:1 }}>
                     <div style={{ fontWeight:800, fontSize:15, color:'#fff' }}>
                       {zoneNames[key] || meta.label}
                     </div>
                     <div style={{ fontSize:11, color:'rgba(255,255,255,0.7)' }}>Set watering schedule</div>
+                  </div>
+                  {/* Live switch status badge */}
+                  <div style={{
+                    display:'flex', alignItems:'center', gap:5,
+                    padding:'4px 10px', borderRadius:12,
+                    background: on ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.20)',
+                    border:'1px solid rgba(255,255,255,0.28)',
+                  }}>
+                    <span style={{
+                      width:7, height:7, borderRadius:'50%',
+                      background: on ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                      boxShadow: on ? '0 0 6px #4ade80' : 'none',
+                      display:'inline-block',
+                    }}/>
+                    <span style={{ fontSize:11, fontWeight:800, color:'#fff', letterSpacing:'0.04em' }}>
+                      {on ? 'ON' : 'OFF'}
+                    </span>
                   </div>
                 </div>
                 {/* Schedule form */}
@@ -1012,6 +1030,46 @@ function DeviceContent({ id }: { id: string }) {
       {activeTab === 'auto' && (
         <SensorAutoErrorBoundary>
         <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:16 }}>
+
+          {/* Live switch status bar — shows all outputs regardless of trigger source */}
+          <div style={{
+            background:'#0F1F17', borderRadius:16, padding:'12px 14px',
+            border:'1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.38)', textTransform:'uppercase', letterSpacing:'0.10em', marginBottom:10 }}>
+              Live Switch Status
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {[...valves, ...(hasRelay ? ['relay1'] : []), ...addonValves].map(key => {
+                const meta = OUTPUT_META[key] || OUTPUT_META.valve1;
+                const on   = isOn(key);
+                return (
+                  <div key={key} style={{
+                    display:'flex', alignItems:'center', gap:6,
+                    padding:'5px 12px', borderRadius:20,
+                    background: on ? `${meta.color}28` : 'rgba(255,255,255,0.06)',
+                    border:`1px solid ${on ? meta.color+'55' : 'rgba(255,255,255,0.10)'}`,
+                    transition:'all 0.3s',
+                  }}>
+                    <span style={{
+                      width:7, height:7, borderRadius:'50%',
+                      background: on ? meta.color : 'rgba(255,255,255,0.25)',
+                      boxShadow: on ? `0 0 6px ${meta.color}` : 'none',
+                      display:'inline-block',
+                      animation: on ? 'pulseRing 1.8s ease-out infinite' : 'none',
+                    }}/>
+                    <span style={{ fontSize:11, fontWeight:800, color: on ? meta.color : 'rgba(255,255,255,0.38)', letterSpacing:'-0.01em' }}>
+                      {zoneNames[key] || meta.label}
+                    </span>
+                    <span style={{ fontSize:10, fontWeight:700, color: on ? '#4ade80' : 'rgba(255,255,255,0.25)', letterSpacing:'0.06em' }}>
+                      {on ? '● ON' : '○ OFF'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Sensor graph for context */}
           <SensorGraph deviceId={id} />
           <SensorAlerts deviceId={id} />

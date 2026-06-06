@@ -60,6 +60,7 @@ static uint32_t t_config     = 0;
 static uint32_t t_auto       = 0;
 static uint32_t t_ota        = 0;
 static uint32_t t_wifiCheck  = 0;
+static uint32_t t_statusLog  = 0;  // periodic relay status to serial
 
 static bool g_wifiWasConnected = false;
 
@@ -151,7 +152,7 @@ void setup() {
   }
 
   t_sensor = t_sensorPush = t_cmdPoll = t_heartbeat = t_auto = millis();
-  t_config  = t_ota = millis();
+  t_config  = t_ota = t_statusLog = millis();
 
   Serial.println("[boot] setup complete");
 }
@@ -181,6 +182,12 @@ void loop() {
 
   // ── Relay auto-off tick ──────────────────────────────────────────────────
   Relays.tick();
+
+  // ── Periodic relay status log (every 30 s) ───────────────────────────────
+  if (now - t_statusLog >= 30000) {
+    t_statusLog = now;
+    Relays.printStatus("periodic");
+  }
 
   // ── Sensor reading ───────────────────────────────────────────────────────
   if (now - t_sensor >= SENSOR_READ_INTERVAL_MS) {

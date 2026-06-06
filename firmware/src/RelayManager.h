@@ -93,6 +93,7 @@ public:
     strncpy(_timedRun[idx].key, key, sizeof(_timedRun[idx].key) - 1);
 
     Serial.printf("[relay] %s ON for %lus\n", key, actual / 1000);
+    printStatus("relay");
     return true;
   }
 
@@ -104,6 +105,7 @@ public:
     _state[idx] = false;
     _timedRun[idx].active = false;
     Serial.printf("[relay] %s OFF\n", key);
+    printStatus("relay");
   }
 
   void stopAll() {
@@ -115,6 +117,7 @@ public:
       }
     }
     Serial.println("[relay] ALL OFF");
+    printStatus("stop_all");
   }
 
   // ── WiFi status relay (relay5) ───────────────────────────────────────────
@@ -141,6 +144,7 @@ public:
           digitalWrite(RELAY_MAP[i].pin, HIGH);
           _state[i] = false;
           _timedRun[i].active = false;
+          printStatus("timeout");
         }
       }
     }
@@ -156,6 +160,15 @@ public:
     }
     s += "}";
     return s;
+  }
+
+  // ── Print full relay status to serial (source = "manual"/"schedule"/"auto") ──
+  void printStatus(const char* source = "") const {
+    Serial.printf("[relay-status] source=%-8s |", source[0] ? source : "unknown");
+    for (int i = 0; i < RELAY_COUNT; i++) {
+      Serial.printf(" %s:%s", RELAY_MAP[i].key, _state[i] ? "ON " : "OFF");
+    }
+    Serial.println();
   }
 
 private:

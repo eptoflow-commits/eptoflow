@@ -119,6 +119,7 @@ public:
 
     Serial.printf("[cloud] command: %s\n", type);
     bool ok = executeCommand(type, payload);
+    Relays.printStatus("manual");
     ack(cmdId, ok ? "executed" : "failed");
     return true;
   }

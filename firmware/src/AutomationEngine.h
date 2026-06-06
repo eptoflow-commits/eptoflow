@@ -147,6 +147,7 @@ public:
           Serial.printf("[auto] %s OFF by rule (M=%.1f%% T=%.1f°C)\n",
             r.valve_key, m, t);
           Relays.turnOff(r.valve_key);
+          Relays.printStatus("auto");
           r.running = false;
         }
         continue; // don't re-evaluate ON while running
@@ -162,6 +163,7 @@ public:
         Serial.printf("[auto] %s ON by rule (M=%.1f%% T=%.1f°C)\n",
           r.valve_key, m, t);
         Relays.turnOn(r.valve_key, r.max_duration_s * 1000UL);
+        Relays.printStatus("auto");
         r.running     = true;
         r.run_start_ms = millis();
       }
