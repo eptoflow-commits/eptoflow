@@ -395,10 +395,10 @@ function OutputCard({ outputKey, isOn, loading, isOnline, deviceId, onToggle, on
           width:44, height:44, borderRadius:14,
           background: isOn ? meta.color+'22' : '#f3f4f6',
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:22, transition:'all 0.3s',
-          filter: isOn ? 'none' : 'grayscale(0.5)',
+          transition:'all 0.3s',
+          filter: isOn ? 'none' : 'grayscale(0.5) opacity(0.6)',
           flexShrink:0,
-        }}>{meta.icon}</div>
+        }}><ZoneIcon type={outputKey} color={isOn ? meta.color : '#94a3b8'} size={22} /></div>
 
         {/* Label + status */}
         <div style={{ flex:1, minWidth:0 }}>
@@ -990,7 +990,7 @@ function DeviceContent({ id }: { id: string }) {
                   background:`linear-gradient(135deg,${meta.color},${meta.color}cc)`,
                   padding:'12px 16px', display:'flex', alignItems:'center', gap:10,
                 }}>
-                  <span style={{ fontSize:22 }}>{meta.icon}</span>
+                  <ZoneIcon type={key} color="white" size={22} />
                   <div>
                     <div style={{ fontWeight:800, fontSize:15, color:'#fff' }}>
                       {zoneNames[key] || meta.label}
